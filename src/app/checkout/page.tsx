@@ -103,12 +103,12 @@ export default function CheckoutPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
             <h2 className="font-extrabold text-slate-900">Collection method</h2>
             <div className="grid grid-cols-2 gap-3">
-              <label className={`rounded-xl border p-4 cursor-pointer transition ${mode === 'delivery' ? 'border-[#64B5F6] bg-slate-50' : 'border-slate-200 hover:border-[#4FA3E8]'}`}>
+              <label className={`rounded-xl border p-4 cursor-pointer transition ${mode === 'delivery' ? 'border-[#BBDEFB] bg-slate-50' : 'border-slate-200 hover:border-[#90CAF9]'}`}>
                 <input type="radio" name="mode" className="mr-2" checked={mode === 'delivery'} onChange={() => setMode('delivery')} />
                 <span className="font-bold text-slate-900">Delivery</span>
                 <p className="text-xs text-slate-500 mt-1">£3.99, free over £30</p>
               </label>
-              <label className={`rounded-xl border p-4 cursor-pointer transition ${mode === 'collect' ? 'border-[#64B5F6] bg-slate-50' : 'border-slate-200 hover:border-[#4FA3E8]'}`}>
+              <label className={`rounded-xl border p-4 cursor-pointer transition ${mode === 'collect' ? 'border-[#BBDEFB] bg-slate-50' : 'border-slate-200 hover:border-[#90CAF9]'}`}>
                 <input type="radio" name="mode" className="mr-2" checked={mode === 'collect'} onChange={() => setMode('collect')} />
                 <span className="font-bold text-slate-900">Click & Collect</span>
                 <p className="text-xs text-slate-500 mt-1">Free — Bridge Road, Chessington</p>
@@ -136,7 +136,7 @@ export default function CheckoutPage() {
             <p className="text-sm text-slate-500">UK law requires customers to be 18 or over. Enter your date of birth.</p>
             <div><label className="block text-xs font-bold text-slate-700 mb-1">Date of birth</label><input className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm w-full text-slate-900 outline-none" type="date" required value={dob} onChange={(e) => setDob(e.target.value)} /></div>
             <label className="flex gap-2 text-sm items-start">
-              <input type="checkbox" className="mt-1 accent-[#64B5F6]" checked={compliance} onChange={(e) => setCompliance(e.target.checked)} required />
+              <input type="checkbox" className="mt-1 accent-[#BBDEFB]" checked={compliance} onChange={(e) => setCompliance(e.target.checked)} required />
               <span className="text-slate-700">I confirm I am aged 18 or over, that the information provided is correct, and I understand nicotine products are addictive. I may be asked for ID on collection/delivery (Challenge 25).</span>
             </label>
           </div>

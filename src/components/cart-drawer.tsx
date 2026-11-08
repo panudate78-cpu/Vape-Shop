@@ -9,7 +9,7 @@ export function CartDrawer() {
   if (!cartOpen) return null;
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-[#64B5F6]/40" onClick={() => setCartOpen(false)} />
+      <div className="absolute inset-0 bg-slate-900/40" onClick={() => setCartOpen(false)} />
       <aside className="absolute right-0 top-0 h-full w-full max-w-md bg-white border-l border-slate-200 p-5 overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-extrabold text-slate-900">Your Cart ({cart.reduce((s, l) => s + l.quantity, 0)})</h2>

@@ -88,7 +88,7 @@ export function ShopClient({ categories, initialCategory, initialQ }: { categori
               {products.map((p) => {
                 const top = [...p.variants].sort((a, b) => b.stockQuantity - a.stockQuantity)[0];
                 return (
-                  <div key={p.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white hover:border-[#4FA3E8]/50 transition">
+                  <div key={p.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white hover:border-[#90CAF9]/50 transition">
                     <Link href={`/product/${p.id}`}>
                       {p.images?.[0]
                         ? <PlaceholderImage src={p.images[0]} alt={p.name} className="h-44 w-full object-cover" />

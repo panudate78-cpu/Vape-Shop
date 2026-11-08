@@ -15,7 +15,7 @@ type P = {
 
 function ProductCard({ p, onAdd }: { p: P; onAdd: (p: P) => void }) {
   return (
-    <div className="group overflow-hidden rounded-2xl border border-slate-200 bg-white hover:border-[#64B5F6] hover:shadow-md transition">
+    <div className="group overflow-hidden rounded-2xl border border-slate-200 bg-white hover:border-[#BBDEFB] hover:shadow-md transition">
       <Link href={`/product/${p.id}`}>
         {p.images?.[0] ? (
           <PlaceholderImage src={p.images[0]} alt={p.name} className="h-44 w-full object-cover bg-slate-100" />
@@ -76,7 +76,7 @@ export default function Home() {
   return (
     <div>
       {/* HERO — blue brand colour */}
-      <section className="relative overflow-hidden bg-[#64B5F6] text-slate-900">
+      <section className="relative overflow-hidden bg-[#BBDEFB] text-slate-900">
         <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-14 md:grid-cols-2 md:py-20 items-center">
           <div>
             <p className="inline-flex items-center gap-2 rounded-full border border-slate-900/20 px-3 py-1 text-xs font-bold">
@@ -91,7 +91,7 @@ export default function Home() {
               Order online for <b>same-day Click & Collect</b> or local delivery. Every order age-verified.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link href="/shop" className="rounded-xl bg-slate-900 px-6 py-3 text-sm font-extrabold text-slate-900 hover:bg-[#4FA3E8] transition shadow-sm">Shop E-Liquids →</Link>
+              <Link href="/shop" className="rounded-xl bg-slate-900 px-6 py-3 text-sm font-extrabold text-white hover:bg-black transition shadow-sm">Shop E-Liquids →</Link>
               <Link href="/visit" className="rounded-xl border-2 border-slate-900 px-6 py-3 text-sm font-extrabold text-slate-900 hover:bg-slate-900 hover:text-white transition">Visit the shop</Link>
             </div>
             <div className="mt-6 flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-900/80">
@@ -155,7 +155,7 @@ export default function Home() {
             { slug: "coils-tanks", emoji: "🌀", blurb: "Coils & tanks" },
             { slug: "accessories", emoji: "🎒", blurb: "Batteries, chargers & gear" },
           ].map((c) => (
-            <Link key={c.slug} href={`/shop?category=${c.slug}`} className="rounded-2xl border border-slate-200 bg-white p-5 hover:border-[#64B5F6] hover:shadow-sm transition">
+            <Link key={c.slug} href={`/shop?category=${c.slug}`} className="rounded-2xl border border-slate-200 bg-white p-5 hover:border-[#BBDEFB] hover:shadow-sm transition">
               <div className="text-3xl">{c.emoji}</div>
               <p className="mt-2 text-sm font-extrabold text-slate-900 capitalize">{c.slug.replace("-", " ")}</p>
               <p className="text-xs text-slate-500">{c.blurb}</p>

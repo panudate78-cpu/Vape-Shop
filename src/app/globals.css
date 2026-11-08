@@ -3,8 +3,9 @@
 @tailwind utilities;
 
 :root {
-  --brand: #64B5F6;
-  --brand-hover: #4FA3E8;
+  --brand-surface: #BBDEFB; /* Material Blue 100 — pale sky blue (hero / header bar) */
+  --brand: #64B5F6;         /* Material Blue 300 — mid blue (buttons / accents on white) */
+  --brand-hover: #4FA3E8;   /* darker blue for button hover */
   color-scheme: light;
 }
 html, body { @apply bg-white text-slate-900 antialiased; }

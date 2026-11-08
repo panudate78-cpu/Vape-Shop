@@ -16,7 +16,7 @@ export function AgeGate() {
     setOpen(false);
   };
   return (
-    <div className="fixed inset-0 z-50 bg-[#64B5F6]/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="max-w-md w-full rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-2xl">
         <div className="mx-auto">
           <Logo height={112} className="justify-center" />

@@ -69,7 +69,7 @@ export function MobileNav() {
       </button>
       {open && (
         <>
-          <div className="md:hidden fixed inset-0 bg-[#64B5F6]/40 z-[60]" onClick={close} aria-hidden />
+          <div className="md:hidden fixed inset-0 bg-slate-900/40 z-[60]" onClick={close} aria-hidden />
           <div className="md:hidden fixed inset-x-0 top-[112px] z-[70] bg-white border-b border-slate-200 shadow-xl">
             <nav className="flex flex-col px-4">
               <Link href="/shop" onClick={close} className="py-4 text-lg border-b border-slate-100 text-slate-800 hover:text-slate-900 transition">Shop</Link>
