@@ -30,7 +30,6 @@ export async function Chrome({ children }: { children: React.ReactNode }) {
             <Link href="/shop" className="hover:text-teal-300">Shop</Link>
             <Link href="/visit" className="hover:text-teal-300">Visit</Link>
             <Link href="/track" className="hover:text-teal-300">Track</Link>
-            {user?.role === 'ADMIN' && <Link href="/admin" className="text-amber-400 hover:text-amber-300">Admin</Link>}
           </nav>
           <div className="ml-auto flex items-center gap-2">
             <StoreNavUser user={user} />

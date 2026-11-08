@@ -6,3 +6,5 @@ node_modules
 .DS_Store
 dist
 drizzle
+node_modules
+.next
