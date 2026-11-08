@@ -16,11 +16,11 @@ type Props = {
  * We use negative inset + overflow-hidden to trim that padding so the
  * mark sits flush against the header edge with no visible black gap.
  */
-export function Logo({ height = 44, className, onDark = false }: Props) {
-  // After cropping, the visible cloud+text occupies roughly the middle 65% of
+export function Logo({ height = 60, className, onDark = false }: Props) {
+  // After cropping, the visible cloud+text occupies roughly the middle 80% of
   // the source image height (top/bottom have black padding). Trim via CSS so
   // we don't need image-processing tooling at build time.
-  const trim = Math.round(height * 0.18);
+  const trim = Math.round(height * 0.10);
   const outerStyle = { height, overflow: 'hidden' as const };
   const imgStyle = {
     height: height + trim * 2,
