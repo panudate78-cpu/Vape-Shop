@@ -39,11 +39,18 @@ export default function ImportPage() {
       <div>
         <h1 className="text-2xl font-bold text-amber-400">CSV Import / Export</h1>
         <p className="text-sm text-zinc-400 mt-2">
-          Upload a CSV to bulk-create or update product variants. Required columns:{' '}
-          <code className="text-teal-300">sku</code> (updates existing),{' '}
-          <code className="text-teal-300">product_name</code> (creates new product if SKU not found).
-          Optional columns: <code className="text-teal-300">brand, flavor, nicotine_strength, bottle_size, color, stock, price, low_stock_threshold, is_active</code>.
+          Upload a CSV to bulk-create or update products and variants. Required columns:{' '}
+          <code className="text-teal-300">sku</code> (updates existing variant),{' '}
+          <code className="text-teal-300">product_name</code> (creates a new product if SKU not found).
+          Optional columns: <code className="text-teal-300">brand, category, description, images, cost_price, flavor, nicotine_strength, bottle_size, color, stock, price, low_stock_threshold, is_active</code>.
         </p>
+        <ul className="text-xs text-zinc-500 list-disc pl-5 space-y-1 mt-2">
+          <li><b className="text-zinc-300">Multi-variant products</b> (different flavours / colours / nic strengths): repeat <code>product_name</code> on every row.</li>
+          <li><b className="text-zinc-300">description</b> only needs to be on the first row of a product.</li>
+          <li><b className="text-zinc-300">images</b> — pipe-separated URLs, e.g. <code>https://...a.jpg|https://...b.jpg</code>. First URL = main image. Upload images via the product editor first, then copy URLs here.</li>
+          <li><b className="text-zinc-300">cost_price</b> — your wholesale/supplier cost in GBP, never shown to customers (for margin/profit reporting).</li>
+          <li><b className="text-zinc-300">category</b> is case-insensitive and auto-created if it doesn't exist.</li>
+        </ul>
       </div>
 
       <div className="card space-y-4">

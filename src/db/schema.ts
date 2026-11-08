@@ -25,6 +25,7 @@ export const products = pgTable('products', {
   brand: text('brand').notNull().default(''),
   description: text('description').default(''),
   basePrice: numeric('base_price', { precision: 10, scale: 2 }).notNull().default('0'),
+  costPrice: numeric('cost_price', { precision: 10, scale: 2 }), // wholesale/supplier cost (for margin reporting, never shown to customers)
   vgPgRatio: text('vg_pg_ratio').default('70/30'),
   flavorProfile: text('flavor_profile').default(''),
   images: jsonb('images').$type<string[]>().default([]),
