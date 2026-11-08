@@ -1,43 +1,49 @@
 import { classNames as clsx } from '@/lib/format';
 
 type Props = {
-  /** Height in px. Width is automatic based on the logo's aspect ratio (~3:1). */
+  /** Height of the visible logo area in px. */
   height?: number;
   className?: string;
-  /**
-   * Render the logo 'naked' (no card, no padding) so its black background
-   * blends invisibly into a pure-black parent (e.g. the main header or
-   * footer). Leave false (default) when placing on non-black surfaces
-   * like teal strips or light cards.
-   */
+  /** Render 'naked' on pure-black surfaces (header/footer) so no card is drawn. */
   onDark?: boolean;
 };
 
 /**
- * Dr Cloud brand logo — white cloud on black with "DR CLOUD" knocked out
- * inside and "THE MOBILE & VAPE STORE" in white underneath. Source PNG is
- * 373x122 (~3:1 landscape).
+ * Dr Cloud brand logo — white cloud with "DR CLOUD" knocked out in black
+ * and "THE MOBILE & VAPE STORE" in white underneath, on a black field.
+ *
+ * The source PNG has black padding around the mark for crop flexibility.
+ * We use negative inset + overflow-hidden to trim that padding so the
+ * mark sits flush against the header edge with no visible black gap.
  */
 export function Logo({ height = 44, className, onDark = false }: Props) {
+  // After cropping, the visible cloud+text occupies roughly the middle 65% of
+  // the source image height (top/bottom have black padding). Trim via CSS so
+  // we don't need image-processing tooling at build time.
+  const trim = Math.round(height * 0.18);
+  const outerStyle = { height, overflow: 'hidden' as const };
+  const imgStyle = {
+    height: height + trim * 2,
+    width: 'auto' as const,
+    display: 'block' as const,
+    marginTop: -trim,
+    marginBottom: -trim,
+  };
+
   if (onDark) {
     return (
-      <div className={clsx('flex items-center justify-center', className)}>
+      <div className={clsx('flex items-center justify-center', className)} style={outerStyle}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/images/dr-cloud-logo.png"
-          alt="Dr Cloud"
-          style={{ height, width: 'auto', display: 'block' }}
-        />
+        <img src="/images/dr-cloud-logo.png" alt="Dr Cloud" style={imgStyle} />
       </div>
     );
   }
-  // Card version: white rounded backing so the logo reads on teal/light.
   const pad = Math.max(2, Math.round(height * 0.08));
   return (
     <div className={clsx('flex items-center justify-center', className)}>
       <span
         className="inline-flex items-center justify-center rounded-xl bg-white shadow-md"
-        style={{ height: height + pad * 2, padding: pad }}
+        style={{ height: height + pad * 2, padding: pad, overflow: 'hidden' }}
         aria-label="Dr Cloud"
         role="img"
       >
@@ -45,7 +51,7 @@ export function Logo({ height = 44, className, onDark = false }: Props) {
         <img
           src="/images/dr-cloud-logo.png"
           alt="Dr Cloud"
-          style={{ height, width: 'auto', display: 'block' }}
+          style={{ height: height + pad * 2 + trim * 2, width: 'auto', display: 'block', marginTop: -trim, marginBottom: -trim }}
         />
       </span>
     </div>
