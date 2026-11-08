@@ -75,7 +75,9 @@ export default function ProductPage() {
                 <button key={vv.id} onClick={() => setSel(vv.id)} disabled={out}
                   className={`text-left rounded-xl border p-3 text-sm transition ${active ? 'border-teal-400 bg-teal-500/10' : 'border-white/10 hover:border-white/30'} ${out ? 'opacity-40 cursor-not-allowed' : ''}`}>
                   <div className="flex items-center gap-2">
-                    {vv.color && <span className="h-4 w-4 rounded-full border border-white/20" style={{ background: vv.color }} />}
+                    {vv.color && /^#([0-9a-f]{3}){1,2}$/i.test(vv.color) && (
+                      <span className="h-4 w-4 rounded-full border border-white/20" style={{ background: vv.color }} />
+                    )}
                     <span className="font-bold text-white">{lbl}</span>
                   </div>
                   <div className="text-xs text-zinc-400 mt-1">

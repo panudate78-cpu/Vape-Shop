@@ -98,7 +98,10 @@ export function StoreProvider({ children, initialCart }: { children: ReactNode; 
   const removeFromCart = (lineId: string) => setCart((p) => p.filter((l) => l.lineId !== lineId));
   const setQuantity = (lineId: string, qty: number) =>
     setCart((p) => p.map((l) => (l.lineId === lineId ? { ...l, quantity: Math.max(1, Math.min(l.stock, qty)) } : l)));
-  const clearCart = () => setCart([]);
+  const clearCart = async () => {
+    setCart([]);
+    try { await fetch('/api/cart', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lines: [] }) }); } catch {}
+  };
 
   const cartCount = useMemo(() => cart.reduce((s, l) => s + l.quantity, 0), [cart]);
   const cartSubtotal = useMemo(() => cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0), [cart]);

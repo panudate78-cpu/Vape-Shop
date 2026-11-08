@@ -107,7 +107,7 @@ export function ShopClient({ categories, initialCategory, initialQ }: { categori
                             addToCart({
                               variantId: top.id, productId: p.id, name: p.name, brand: p.brand,
                               image: p.images?.[0],
-                              variantLabel: [top.flavor, top.nicotineStrength, top.bottleSize, top.color].filter(Boolean).join(' · '),
+                              variantLabel: [top.flavor, top.nicotineStrength, top.bottleSize].filter(Boolean).join(' · '),
                               sku: top.sku, unitPrice: parseFloat(top.priceOverride || '0'), stock: top.stockQuantity,
                             });
                           }}
