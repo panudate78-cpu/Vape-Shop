@@ -90,7 +90,10 @@ export const orders = pgTable('orders', {
   dobVerified: boolean('dob_verified').default(false),
   complianceAccepted: boolean('compliance_accepted').default(false),
   promoCode: text('promo_code'),
-  // NOTE: emails_sent_at column is added lazily via ALTER TABLE on first use (see order-emails.ts)
+  source: text('source').notNull().default('online'), // online | pos (in-store sale at the till)
+  paymentMethod: text('payment_method'), // cash | card (for POS); null for online
+  staffNote: text('staff_note'),
+  // NOTE: emails_sent_at column is added lazily via ALTER TABLE on first use (see order-emails.ts).
   // so first deploy after adding email features doesn't require a manual migration.
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

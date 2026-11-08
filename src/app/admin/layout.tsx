@@ -19,6 +19,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (user.role !== "ADMIN") return <div className="p-10 text-center text-red-400">Forbidden — admins only.</div>;
   const links = [
     { href: "/admin", label: "📊 Overview" },
+    { href: "/admin/pos", label: "🛒 Till (POS)" },
     { href: "/admin/orders", label: "📦 Orders" },
     { href: "/admin/inventory", label: "📉 Inventory" },
     { href: "/admin/products", label: "🧴 Products" },
