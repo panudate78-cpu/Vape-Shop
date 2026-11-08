@@ -13,8 +13,6 @@ export default async function AdminHome() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold text-amber-400">Admin dashboard</h1>
         <div className="flex gap-2">
-          <Link href="/admin/orders" className="btn-outline">Orders</Link>
-          <Link href="/admin/inventory" className="btn-outline">Inventory</Link>
           <Link href="/admin/products/new" className="btn-amber">+ New product</Link>
           <a href="/api/admin/export" className="btn-outline">Export CSV</a>
         </div>
