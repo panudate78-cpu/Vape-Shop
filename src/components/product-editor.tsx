@@ -115,12 +115,12 @@ export default function ProductEditor({ mode, productId }: { mode: "create" | "e
                   fd.append('file', f);
                   try {
                     const r = await fetch('/api/upload', { method: 'POST', body: fd });
-                    const j = await r.json();
+                    const j = await r.json().catch(() => ({ error: `Unexpected error (${r.status})` }));
                     if (!r.ok) { setMsg(j.error || 'Upload failed'); return; }
                     const existing = form.images.split('\n').map((s) => s.trim()).filter(Boolean);
                     setForm({ ...form, images: [...existing, j.url].join('\n') });
                     setMsg('Uploaded ✓');
-                  } catch { setMsg('Upload failed — are you signed in as admin?'); }
+                  } catch (e: any) { setMsg(`Network error: ${e?.message || 'check your connection'}`); }
                   e.target.value = '';
                 }}
               />
