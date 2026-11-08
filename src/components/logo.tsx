@@ -3,35 +3,34 @@ import { classNames as clsx } from '@/lib/format';
 type Props = {
   size?: number;        // square size in px
   className?: string;
-  showWord?: boolean;   // include the "Dr Cloud" wordmark next to the mark
+  showWord?: boolean;   // DEPRECATED — no longer rendered; kept for backwards compat
 };
 
 /**
  * Dr Cloud shop-sign logo.
  *
- * The source photo is the real shop fascia sign — a white 3-lobe cloud with
- * "DR CLOUD" engraved in it against a muted blue-grey sign plate. We render it
- * on a soft white rounded card so it reads cleanly on both the dark header and
- * teal visit banner without needing background removal.
+ * The source photo is the real shop fascia sign. The photo itself already says
+ * "DR CLOUD" inside the cloud engraving, so we render just the sign image on a
+ * soft white rounded card — no separate "Dr Cloud" text next to it.
  */
-export function Logo({ size = 40, className, showWord = false }: Props) {
+export function Logo({ size = 56, className }: Props) {
   return (
-    <div className={clsx('flex items-center gap-2', className)}>
+    <div className={clsx('flex items-center justify-center', className)}>
       <span
-        className="inline-flex items-center justify-center rounded-xl bg-white/95 p-1 shadow-sm"
+        className="inline-flex items-center justify-center rounded-2xl bg-white shadow-md"
         style={{ width: size, height: size }}
-        aria-hidden
+        aria-label="Dr Cloud"
+        role="img"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/images/dr-cloud-logo.jpg"
           alt="Dr Cloud"
-          width={size - 8}
-          height={size - 8}
-          className="h-full w-full object-contain rounded-lg"
+          width={size}
+          height={size}
+          className="h-full w-full object-cover rounded-2xl"
         />
       </span>
-      {showWord && <span className="font-black text-xl tracking-tight text-white">Dr Cloud</span>}
     </div>
   );
 }

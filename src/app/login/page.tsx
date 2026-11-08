@@ -18,7 +18,7 @@ export default function LoginPage() {
   return (
     <div className="max-w-md mx-auto card mt-8">
       <h1 className="text-xl font-bold">Login</h1>
-      <p className="text-sm text-zinc-400 mt-1">Demo admin: admin@vapeshop.co.uk / Admin123!</p>
+      <p className="text-sm text-zinc-400 mt-1">Sign in to your account to track orders and checkout faster.</p>
       <form onSubmit={submit} className="space-y-3 mt-4">
         <div><label className="label">Email</label><input className="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
         <div><label className="label">Password</label><input className="input" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} /></div>

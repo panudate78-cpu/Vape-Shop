@@ -9,6 +9,18 @@ import { BRAND } from '@/lib/brand';
 export const dynamic = 'force-dynamic';
 
 const STEPS = ['pending', 'processing', 'ready', 'shipped', 'collected'] as const;
+
+function AddressBlock({ addr }: { addr: any }) {
+  if (!addr) return <p className="text-zinc-500 text-sm">No address on file.</p>;
+  const parsed = typeof addr === 'string' ? (() => { try { return JSON.parse(addr); } catch { return addr; } })() : addr;
+  const lines = [parsed.line1, parsed.line2, parsed.city, parsed.county, parsed.postcode].filter((x: any) => x && String(x).trim());
+  return (
+    <address className="not-italic text-sm text-zinc-200 leading-relaxed mt-2">
+      {lines.map((l: string, i: number) => <div key={i}>{l}</div>)}
+    </address>
+  );
+}
+
 function statusLabel(s: string) {
   return { pending: 'Payment pending', processing: 'Processing', ready: 'Ready for collection', shipped: 'Shipped', collected: 'Collected', paid: 'Paid', cancelled: 'Cancelled', refunded: 'Refunded' }[s] || s;
 }
@@ -81,8 +93,8 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
         </div>
       ) : order.shippingAddress ? (
         <div className="card">
-          <h2 className="font-bold">Delivery</h2>
-          <pre className="text-sm text-zinc-300 whitespace-pre-wrap mt-1">{JSON.stringify(order.shippingAddress, null, 2)}</pre>
+          <h2 className="font-bold">Delivery address</h2>
+          <AddressBlock addr={typeof order.shippingAddress === 'string' ? JSON.parse(order.shippingAddress) : order.shippingAddress} />
         </div>
       ) : null}
 
