@@ -163,7 +163,7 @@ export default function Home() {
                       addToCart({
                         variantId: v.id, productId: p.id, name: p.name, brand: p.brand,
                         image: p.images?.[0],
-                        variantLabel: [v.flavor, v.nicotineStrength, v.bottleSize, v.color].filter(Boolean).join(" · "),
+                        variantLabel: [v.flavor, v.nicotineStrength, v.bottleSize].filter(Boolean).join(" · "),
                         sku: v.sku,
                         unitPrice: parseFloat(v.priceOverride || p.basePrice),
                         stock: v.stockQuantity,
