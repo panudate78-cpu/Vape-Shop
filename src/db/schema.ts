@@ -89,6 +89,8 @@ export const orders = pgTable('orders', {
   dobVerified: boolean('dob_verified').default(false),
   complianceAccepted: boolean('compliance_accepted').default(false),
   promoCode: text('promo_code'),
+  // NOTE: emails_sent_at column is added lazily via ALTER TABLE on first use (see order-emails.ts)
+  // so first deploy after adding email features doesn't require a manual migration.
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

@@ -4,6 +4,7 @@ import { orders, orderItems, productVariants, promoCodes, payments } from '@/db/
 import { eq, inArray, sql } from 'drizzle-orm';
 import { captureMockPayment } from '@/lib/payments';
 import { getSession } from '@/lib/session';
+import { sendOrderEmailsForOrder } from '@/lib/order-emails';
 
 // For mock gateway: finalize payment and deduct stock (same effect as a verified webhook).
 export async function POST(_: Request, { params }: { params: { id: string } }) {
@@ -34,6 +35,9 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
 
   const s = await getSession();
   if (s) { s.cart = []; await s.save(); }
+
+  // Fire-and-forget emails (don't fail checkout if email delivery fails).
+  sendOrderEmailsForOrder(id).catch((e) => console.error('[capture] email send failed:', e));
 
   return NextResponse.json({ ok: true, orderId: id });
 }
