@@ -70,8 +70,9 @@ export async function Chrome({ children }: { children: React.ReactNode }) {
             <a href={googleMapsUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-white/15 px-4 py-2 text-xs font-extrabold text-white inline-block mt-4 hover:bg-white/5">Open in Google Maps</a>
           </div>
         </div>
-        <div className="border-t border-white/10 py-4 text-center text-xs text-zinc-500">
-          © {new Date().getFullYear()} {BRAND.fullName}. All rights reserved. 18+ only.
+        <div className="border-t border-white/10 py-4 text-center text-xs text-zinc-500 flex flex-wrap items-center justify-center gap-3">
+          <span>© {new Date().getFullYear()} {BRAND.fullName}. All rights reserved. 18+ only.</span>
+          <span className="opacity-40" title="Build version — lets us confirm Vercel is running the latest deploy">v7 · {process.env.NEXT_PUBLIC_BUILD_ID || 'prod'}</span>
         </div>
       </footer>
       <div className="bg-amber-500 text-zinc-950 text-center text-[11px] md:text-xs font-semibold py-2 px-3">
