@@ -5,7 +5,7 @@ import { AgeGate } from './age-gate';
 import { LogoutButton } from './logout-button';
 import { CartButton } from './cart-button';
 import { CartDrawer } from './cart-drawer';
-import { StoreNavUser } from './nav-user';
+import { StoreNavUser, MobileNav } from './nav-user';
 import { Logo } from './logo';
 
 export async function Chrome({ children }: { children: React.ReactNode }) {
@@ -22,9 +22,9 @@ export async function Chrome({ children }: { children: React.ReactNode }) {
         <div className="bg-teal-500 text-zinc-950 text-xs md:text-sm text-center py-1 font-semibold">
           {fullAddress} · Same-day Click & Collect · Call <a href={BRAND.phoneHref} className="underline">{BRAND.phone}</a>
         </div>
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
-          <Link href="/" aria-label="Dr Cloud — home" className="flex items-center">
-            <Logo height={64} onDark />
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4 relative">
+          <Link href="/" aria-label="Dr Cloud — home" className="flex items-center shrink-0">
+            <Logo height={56} onDark />
           </Link>
           <nav className="hidden md:flex gap-4 text-sm ml-2">
             <Link href="/shop" className="hover:text-teal-300">Shop</Link>
@@ -34,6 +34,7 @@ export async function Chrome({ children }: { children: React.ReactNode }) {
           <div className="ml-auto flex items-center gap-2">
             <StoreNavUser user={user} />
             <CartButton />
+            <MobileNav />
           </div>
         </div>
       </header>
