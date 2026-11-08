@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-screen flex flex-col bg-zinc-950 text-zinc-100">
+      <body className="min-h-screen flex flex-col bg-white text-slate-900">
         <StoreProvider>
           <Chrome>{children}</Chrome>
         </StoreProvider>

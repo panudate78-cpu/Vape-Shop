@@ -17,7 +17,7 @@ export default function RegisterPage() {
   return (
     <div className="max-w-md mx-auto card mt-8">
       <h1 className="text-xl font-bold">Create an account</h1>
-      <p className="text-sm text-zinc-400 mt-1">You must be 18 or over to register.</p>
+      <p className="text-sm text-slate-500 mt-1">You must be 18 or over to register.</p>
       <form onSubmit={submit} className="space-y-3 mt-4">
         <div><label className="label">Full name</label><input className="input" required value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>
         <div><label className="label">Email</label><input className="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
@@ -25,8 +25,8 @@ export default function RegisterPage() {
         <div><label className="label">Date of birth</label><input className="input" type="date" required value={dob} onChange={(e) => setDob(e.target.value)} /></div>
         {err && <div className="text-red-400 text-sm">{err}</div>}
         <button className="btn-primary w-full" disabled={loading}>{loading ? 'Creating…' : 'Create account'}</button>
-        <p className="text-xs text-zinc-500 text-center">By registering you confirm you are aged 18 or over and accept our terms.</p>
-        <p className="text-sm text-center text-zinc-400">Already got an account? <Link href="/login" className="text-teal-300 underline">Sign in</Link></p>
+        <p className="text-xs text-slate-400 text-center">By registering you confirm you are aged 18 or over and accept our terms.</p>
+        <p className="text-sm text-center text-slate-500">Already got an account? <Link href="/login" className="text-teal-700 underline">Sign in</Link></p>
       </form>
     </div>
   );

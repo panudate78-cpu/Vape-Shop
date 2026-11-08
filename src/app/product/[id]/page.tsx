@@ -44,8 +44,8 @@ export default function ProductPage() {
     });
   }, [params.id]);
 
-  if (loading) return <div className="text-zinc-400 py-10 text-center">Loading…</div>;
-  if (!product) return <div className="rounded-2xl border border-white/10 bg-zinc-900 text-center py-16">Product not found.</div>;
+  if (loading) return <div className="text-slate-500 py-10 text-center">Loading…</div>;
+  if (!product) return <div className="rounded-2xl border border-slate-200 bg-white text-center py-16">Product not found.</div>;
   const v = variants.find((x) => x.id === sel) || null;
 
   return (
@@ -55,9 +55,9 @@ export default function ProductPage() {
       </div>
       <div>
         <div className="text-xs text-teal-400 uppercase tracking-wide font-bold">{product.brand}{product.categoryName ? ' · ' + product.categoryName : ''}</div>
-        <h1 className="text-3xl md:text-4xl font-black mt-1 text-white leading-tight">{product.name}</h1>
-        <p className="text-zinc-300 mt-3">{product.description}</p>
-        <div className="mt-3 text-sm text-zinc-400 space-y-1">
+        <h1 className="text-3xl md:text-4xl font-black mt-1 text-slate-900 leading-tight">{product.name}</h1>
+        <p className="text-slate-700 mt-3">{product.description}</p>
+        <div className="mt-3 text-sm text-slate-500 space-y-1">
           {product.vgPgRatio && <div>VG/PG: {product.vgPgRatio}</div>}
           {product.flavorProfile && <div>Profile: {product.flavorProfile}</div>}
         </div>
@@ -65,7 +65,7 @@ export default function ProductPage() {
           {v ? gbp(v.price) : gbp(Math.min(...variants.map((x) => x.price)))}
         </div>
         <div className="mt-5">
-          <div className="label text-zinc-300 font-bold mb-2">Choose option</div>
+          <div className="label text-slate-700 font-bold mb-2">Choose option</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {variants.map((vv) => {
               const lbl = [vv.flavor, vv.nicotineStrength, vv.bottleSize].filter(Boolean).join(' · ');
@@ -73,14 +73,14 @@ export default function ProductPage() {
               const out = vv.stockQuantity === 0;
               return (
                 <button key={vv.id} onClick={() => setSel(vv.id)} disabled={out}
-                  className={`text-left rounded-xl border p-3 text-sm transition ${active ? 'border-teal-400 bg-teal-500/10' : 'border-white/10 hover:border-white/30'} ${out ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                  className={`text-left rounded-xl border p-3 text-sm transition ${active ? 'border-teal-400 bg-teal-500/10' : 'border-slate-200 hover:border-white/30'} ${out ? 'opacity-40 cursor-not-allowed' : ''}`}>
                   <div className="flex items-center gap-2">
                     {vv.color && /^#([0-9a-f]{3}){1,2}$/i.test(vv.color) && (
-                      <span className="h-4 w-4 rounded-full border border-white/20" style={{ background: vv.color }} />
+                      <span className="h-4 w-4 rounded-full border border-slate-300" style={{ background: vv.color }} />
                     )}
-                    <span className="font-bold text-white">{lbl}</span>
+                    <span className="font-bold text-slate-900">{lbl}</span>
                   </div>
-                  <div className="text-xs text-zinc-400 mt-1">
+                  <div className="text-xs text-slate-500 mt-1">
                     {gbp(vv.price)} · {out ? 'Out of stock' : `${vv.stockQuantity} in stock`}
                   </div>
                 </button>
@@ -100,11 +100,11 @@ export default function ProductPage() {
                 unitPrice: v.price, stock: v.stockQuantity,
               });
             }}
-            className={`w-full rounded-xl px-6 py-3 text-sm font-extrabold ${v && v.stockQuantity > 0 ? 'bg-teal-500 text-black hover:bg-teal-400' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+            className={`w-full rounded-xl px-6 py-3 text-sm font-extrabold ${v && v.stockQuantity > 0 ? 'bg-teal-600 text-white hover:bg-teal-400' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
           >
             {v && v.stockQuantity > 0 ? 'Add to cart' : 'Out of stock'}
           </button>
-          <p className="text-xs text-zinc-500 mt-3">⚠️ Nicotine is addictive. Adults 18+ only. Challenge 25 on collection/delivery.</p>
+          <p className="text-xs text-slate-400 mt-3">⚠️ Nicotine is addictive. Adults 18+ only. Challenge 25 on collection/delivery.</p>
         </div>
       </div>
     </div>

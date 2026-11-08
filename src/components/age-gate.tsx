@@ -16,21 +16,21 @@ export function AgeGate() {
     setOpen(false);
   };
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="max-w-md w-full rounded-2xl border border-teal-500/40 bg-zinc-900 p-6 text-center">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="max-w-md w-full rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-2xl">
         <div className="mx-auto">
-          <Logo height={128} className="justify-center" />
+          <Logo height={112} className="justify-center" />
         </div>
-        <div className="mx-auto mt-4 h-12 w-12 rounded-full bg-teal-500 text-zinc-950 font-black text-2xl flex items-center justify-center">18+</div>
-        <h1 className="mt-4 text-2xl font-black text-white">Welcome to {BRAND.fullName}</h1>
-        <p className="mt-2 text-zinc-400 text-sm">
+        <div className="mx-auto mt-4 h-12 w-12 rounded-full bg-amber-400 text-slate-900 font-black text-2xl flex items-center justify-center">18+</div>
+        <h1 className="mt-4 text-2xl font-black text-slate-900">Welcome to {BRAND.fullName}</h1>
+        <p className="mt-2 text-slate-600 text-sm">
           This website sells nicotine-containing products which are only for adults aged 18 and over.
           Please confirm you are 18 or over to enter.
         </p>
-        <p className="mt-3 text-xs text-zinc-500">{fullAddress} · Challenge 25 on collection.</p>
+        <p className="mt-3 text-xs text-slate-500">{fullAddress} · Challenge 25 on collection.</p>
         <div className="mt-5 flex gap-2">
-          <button onClick={accept} className="flex-1 rounded-xl bg-teal-500 hover:bg-teal-400 text-black font-extrabold px-4 py-3 text-sm">I am 18 or over</button>
-          <a href="https://www.nhs.uk/better-health/quit-smoking/" className="flex-1 rounded-xl border border-white/15 px-4 py-3 text-sm font-bold text-white hover:bg-white/5">Exit</a>
+          <button onClick={accept} className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-extrabold px-4 py-3 text-sm transition shadow-sm">I am 18 or over</button>
+          <a href="https://www.nhs.uk/better-health/quit-smoking/" className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition">Exit</a>
         </div>
       </div>
     </div>

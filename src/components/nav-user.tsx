@@ -6,22 +6,23 @@ import { LogoutButton } from './logout-button';
 
 type User = { id: number; email: string; role: string; fullName?: string };
 export function StoreNavUser({ user }: { user?: User }) {
-  useStore(); // subscribe so rerenders on cart/store changes
+  useStore();
   if (user) {
     const isAdmin = user.role === 'ADMIN';
     const accountHref = isAdmin ? '/admin' : '/account';
-    const accountLabel = isAdmin ? 'Admin' : (user.fullName || user.email);
     return (
       <div className="flex items-center gap-2 text-sm">
-        <div className="hidden sm:flex items-center gap-2">
-          <Link href={accountHref} className={isAdmin ? 'rounded-lg bg-amber-400 px-2.5 py-1 text-xs font-black text-black hover:bg-amber-300' : 'hover:text-teal-300'}>
-            {isAdmin ? '🛠 Admin' : accountLabel}
+        <div className="hidden sm:flex items-center gap-3">
+          <Link href={accountHref} className={isAdmin
+            ? 'rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-black text-slate-900 hover:bg-amber-300 transition'
+            : 'text-slate-700 hover:text-teal-700 font-medium transition'}>
+            {isAdmin ? '🛠 Admin' : (user.fullName || user.email)}
           </Link>
           <LogoutButton />
         </div>
         <Link
           href={accountHref}
-          className="sm:hidden rounded-lg border border-white/20 w-9 h-9 flex items-center justify-center text-white hover:bg-white/10"
+          className="sm:hidden rounded-lg border border-slate-300 w-9 h-9 flex items-center justify-center text-slate-700 hover:bg-slate-100 transition"
           aria-label={isAdmin ? 'Admin dashboard' : 'Account'}
           title={user.email}
         >
@@ -32,13 +33,13 @@ export function StoreNavUser({ user }: { user?: User }) {
   }
   return (
     <div className="flex items-center gap-2 text-sm">
-      <div className="hidden sm:flex items-center gap-2">
-        <Link href="/login" className="hover:text-teal-300">Login</Link>
-        <Link href="/register" className="rounded-xl bg-teal-500 px-3 py-1.5 text-sm font-extrabold text-black hover:bg-teal-400">Sign up</Link>
+      <div className="hidden sm:flex items-center gap-3">
+        <Link href="/login" className="text-slate-700 hover:text-teal-700 font-medium transition">Login</Link>
+        <Link href="/register" className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-bold text-white hover:bg-teal-500 transition shadow-sm">Sign up</Link>
       </div>
       <Link
         href="/login"
-        className="sm:hidden rounded-lg bg-teal-500 px-3 py-1.5 text-xs font-extrabold text-black hover:bg-teal-400"
+        className="sm:hidden rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-teal-500 transition shadow-sm"
       >
         Login
       </Link>
@@ -46,15 +47,9 @@ export function StoreNavUser({ user }: { user?: User }) {
   );
 }
 
-/**
- * Mobile hamburger menu. Rendered fixed so it always sits on top of page content
- * with a fully opaque panel + dim backdrop — no text bleeding through.
- */
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
-
-  // Lock body scroll while the menu is open
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -66,7 +61,7 @@ export function MobileNav() {
     <>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="md:hidden ml-1 rounded-lg border border-white/20 w-9 h-9 flex items-center justify-center text-white hover:bg-white/10 shrink-0"
+        className="md:hidden ml-1 rounded-lg border border-slate-300 w-9 h-9 flex items-center justify-center text-slate-700 hover:bg-slate-100 transition shrink-0"
         aria-label={open ? 'Close menu' : 'Open menu'}
         aria-expanded={open}
       >
@@ -74,19 +69,13 @@ export function MobileNav() {
       </button>
       {open && (
         <>
-          {/* Dim backdrop — clicks outside close the menu */}
-          <div
-            className="md:hidden fixed inset-0 bg-black/70 z-[60]"
-            onClick={close}
-            aria-hidden
-          />
-          {/* Opaque menu panel — anchored just under the sticky header */}
-          <div className="md:hidden fixed inset-x-0 top-[112px] z-[70] bg-black border-b border-white/10 shadow-2xl">
+          <div className="md:hidden fixed inset-0 bg-slate-900/40 z-[60]" onClick={close} aria-hidden />
+          <div className="md:hidden fixed inset-x-0 top-[112px] z-[70] bg-white border-b border-slate-200 shadow-xl">
             <nav className="flex flex-col px-4">
-              <Link href="/shop" onClick={close} className="py-4 text-lg border-b border-white/10 text-white hover:text-teal-300">Shop</Link>
-              <Link href="/visit" onClick={close} className="py-4 text-lg border-b border-white/10 text-white hover:text-teal-300">Visit</Link>
-              <Link href="/track" onClick={close} className="py-4 text-lg border-b border-white/10 text-white hover:text-teal-300">Track my order</Link>
-              <Link href="/login" onClick={close} className="py-4 text-lg text-white hover:text-teal-300">Login / Sign up</Link>
+              <Link href="/shop" onClick={close} className="py-4 text-lg border-b border-slate-100 text-slate-800 hover:text-teal-700 transition">Shop</Link>
+              <Link href="/visit" onClick={close} className="py-4 text-lg border-b border-slate-100 text-slate-800 hover:text-teal-700 transition">Visit</Link>
+              <Link href="/track" onClick={close} className="py-4 text-lg border-b border-slate-100 text-slate-800 hover:text-teal-700 transition">Track my order</Link>
+              <Link href="/login" onClick={close} className="py-4 text-lg text-slate-800 hover:text-teal-700 transition">Login / Sign up</Link>
             </nav>
           </div>
         </>

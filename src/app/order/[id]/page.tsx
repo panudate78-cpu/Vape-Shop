@@ -11,11 +11,11 @@ export const dynamic = 'force-dynamic';
 const STEPS = ['pending', 'processing', 'ready', 'shipped', 'collected'] as const;
 
 function AddressBlock({ addr }: { addr: any }) {
-  if (!addr) return <p className="text-zinc-500 text-sm">No address on file.</p>;
+  if (!addr) return <p className="text-slate-400 text-sm">No address on file.</p>;
   const parsed = typeof addr === 'string' ? (() => { try { return JSON.parse(addr); } catch { return addr; } })() : addr;
   const lines = [parsed.line1, parsed.line2, parsed.city, parsed.county, parsed.postcode].filter((x: any) => x && String(x).trim());
   return (
-    <address className="not-italic text-sm text-zinc-200 leading-relaxed mt-2">
+    <address className="not-italic text-sm text-slate-700 leading-relaxed mt-2">
       {lines.map((l: string, i: number) => <div key={i}>{l}</div>)}
     </address>
   );
@@ -47,14 +47,14 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
       <div className="card">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h1 className="text-2xl font-bold">Order #{order.id}</h1>
-          <div className="text-sm text-zinc-400">Placed {new Date(order.createdAt!).toLocaleString()}</div>
+          <div className="text-sm text-slate-500">Placed {new Date(order.createdAt!).toLocaleString()}</div>
         </div>
-        <div className="mt-1 text-teal-300">{statusLabel(order.status)}</div>
+        <div className="mt-1 text-teal-700">{statusLabel(order.status)}</div>
         {order.trackingNumber && <div className="text-sm mt-1">Tracking: <span className="font-mono">{order.trackingNumber}</span> {order.carrier && `(${order.carrier})`}</div>}
         <div className="mt-6 flex justify-between text-xs">
           {steps.map((label, i) => (
-            <div key={label} className={`flex-1 text-center ${i <= Math.max(trackIndex, order.paymentStatus === 'paid' ? 1 : 0) ? 'text-teal-400' : 'text-zinc-600'}`}>
-              <div className={`h-2 rounded-full mx-1 ${i <= Math.max(trackIndex, order.paymentStatus === 'paid' ? 1 : 0) ? 'bg-teal-500' : 'bg-zinc-800'}`} />
+            <div key={label} className={`flex-1 text-center ${i <= Math.max(trackIndex, order.paymentStatus === 'paid' ? 1 : 0) ? 'text-teal-600' : 'text-slate-500'}`}>
+              <div className={`h-2 rounded-full mx-1 ${i <= Math.max(trackIndex, order.paymentStatus === 'paid' ? 1 : 0) ? 'bg-teal-500' : 'bg-slate-100'}`} />
               <div className="mt-1">{label}</div>
             </div>
           ))}
@@ -68,28 +68,28 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
             <li key={i.id} className="py-2 flex justify-between">
               <div>
                 <div className="font-medium">{i.productName}</div>
-                <div className="text-xs text-zinc-400">{i.variantLabel} · {i.sku} × {i.quantity}</div>
+                <div className="text-xs text-slate-500">{i.variantLabel} · {i.sku} × {i.quantity}</div>
               </div>
               <div>{formatPrice(Number(i.unitPrice) * i.quantity)}</div>
             </li>
           ))}
         </ul>
-        <div className="border-t border-zinc-800 mt-3 pt-3 space-y-1 text-sm">
+        <div className="border-t border-slate-200 mt-3 pt-3 space-y-1 text-sm">
           <div className="flex justify-between"><span>Subtotal</span><span>{formatPrice(order.subtotal)}</span></div>
           <div className="flex justify-between"><span>Shipping</span><span>{Number(order.shippingCost) === 0 ? 'Free' : formatPrice(order.shippingCost)}</span></div>
-          {Number(order.discount) > 0 && <div className="flex justify-between text-teal-300"><span>Discount</span><span>-{formatPrice(order.discount)}</span></div>}
-          <div className="flex justify-between font-bold text-lg"><span>Total</span><span className="text-teal-400">{formatPrice(order.totalAmount)}</span></div>
+          {Number(order.discount) > 0 && <div className="flex justify-between text-teal-700"><span>Discount</span><span>-{formatPrice(order.discount)}</span></div>}
+          <div className="flex justify-between font-bold text-lg"><span>Total</span><span className="text-teal-600">{formatPrice(order.totalAmount)}</span></div>
         </div>
       </div>
 
       {order.collectionMode === 'collect' ? (
         <div className="card">
           <h2 className="font-bold">Click & Collect</h2>
-          <p className="text-sm text-zinc-300 mt-2">
+          <p className="text-sm text-slate-700 mt-2">
             When your order shows “Ready for collection”, bring your order number (#{order.id}) and photo ID to:
           </p>
-          <p className="text-sm text-zinc-300 mt-1">{BRAND.name}, {BRAND.address.line1}, {BRAND.address.city} {BRAND.address.postcode}</p>
-          <p className="text-xs text-zinc-500 mt-2">We operate Challenge 25 — if you look under 25 you will be asked for ID.</p>
+          <p className="text-sm text-slate-700 mt-1">{BRAND.name}, {BRAND.address.line1}, {BRAND.address.city} {BRAND.address.postcode}</p>
+          <p className="text-xs text-slate-400 mt-2">We operate Challenge 25 — if you look under 25 you will be asked for ID.</p>
         </div>
       ) : order.shippingAddress ? (
         <div className="card">
