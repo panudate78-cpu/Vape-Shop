@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { orders, orderItems, productVariants } from '@/db/schema';
+import { orders, orderItems, productVariants, users } from '@/db/schema';
 import { eq, desc, sql, and } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/session';
 
@@ -20,7 +20,16 @@ export async function GET() {
     }).from(productVariants)
     .where(and(eq(productVariants.isActive, true), sql`${productVariants.stockQuantity} <= ${productVariants.lowStockThreshold}`))
     .orderBy(productVariants.stockQuantity).limit(20);
-  const recent = await db.select().from(orders).orderBy(desc(orders.createdAt)).limit(10);
+  const recentRows = await db
+    .select({ order: orders, userEmail: users.email, userFullName: users.fullName })
+    .from(orders)
+    .leftJoin(users, eq(users.id, orders.userId))
+    .orderBy(desc(orders.createdAt)).limit(10);
+  const recent = recentRows.map((r) => ({
+    ...r.order,
+    customerEmail: r.order.guestEmail || r.userEmail || null,
+    customerName: r.userFullName || null,
+  }));
 
   return NextResponse.json({ revenue: rev.v, paidOrders: cnt.v, pendingOrders: pen.v, lowStock: low, recent });
 }

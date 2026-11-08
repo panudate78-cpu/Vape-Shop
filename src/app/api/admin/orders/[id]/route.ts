@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { orders, orderItems } from '@/db/schema';
+import { orders, orderItems, users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/session';
 import { z } from 'zod';
@@ -15,10 +15,22 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const id = Number(params.id);
-  const [o] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
-  if (!o) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const [row] = await db
+    .select({ order: orders, userEmail: users.email, userFullName: users.fullName })
+    .from(orders)
+    .leftJoin(users, eq(users.id, orders.userId))
+    .where(eq(orders.id, id))
+    .limit(1);
+  if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, id));
-  return NextResponse.json({ order: o, items });
+  return NextResponse.json({
+    order: {
+      ...row.order,
+      customerEmail: row.order.guestEmail || row.userEmail || null,
+      customerName: row.userFullName || null,
+    },
+    items,
+  });
 }
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
