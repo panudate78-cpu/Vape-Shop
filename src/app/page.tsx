@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { gbp } from "@/lib/format";
 import { useStore } from "@/lib/store";
-import { BRAND, fullAddress } from "@/lib/brand";
+import { BRAND, fullAddress, shortAddress } from "@/lib/brand";
 import { PlaceholderImage } from "@/components/placeholder-image";
 
 type P = {
@@ -80,7 +80,7 @@ export default function Home() {
         <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-14 md:grid-cols-2 md:py-20 items-center">
           <div>
             <p className="inline-flex items-center gap-2 rounded-full border border-white/25 px-3 py-1 text-xs font-bold text-white">
-              📍 {fullAddress} · <a href={BRAND.phoneHref} className="underline hover:text-white/80">{BRAND.phone}</a>
+              📍 {shortAddress} · <a href={BRAND.phoneHref} className="underline hover:text-white/80">{BRAND.phone}</a>
             </p>
             <h1 className="mt-4 text-4xl font-black leading-[1.05] md:text-6xl text-white">
               Dr Cloud<br />Chessington<br />
