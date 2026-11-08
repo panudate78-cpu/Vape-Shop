@@ -19,17 +19,17 @@ export async function Chrome({ children }: { children: React.ReactNode }) {
         ⚠️ This product contains nicotine. Nicotine is an addictive chemical. Adults 18+ only.
       </div>
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
-        <div className="bg-teal-600 text-white text-xs md:text-sm text-center py-1.5 font-semibold">
-          {fullAddress} · Same-day Click & Collect · Call <a href={BRAND.phoneHref} className="underline hover:text-teal-100">{BRAND.phone}</a>
+        <div className="bg-black text-white text-xs md:text-sm text-center py-1.5 font-semibold">
+          {fullAddress} · Same-day Click & Collect · Call <a href={BRAND.phoneHref} className="underline hover:text-white">{BRAND.phone}</a>
         </div>
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4 relative">
           <Link href="/" aria-label="Dr Cloud — home" className="flex items-center shrink-0">
             <Logo height={52} />
           </Link>
           <nav className="hidden md:flex gap-5 text-sm font-medium ml-2 text-slate-700">
-            <Link href="/shop" className="hover:text-teal-700 transition">Shop</Link>
-            <Link href="/visit" className="hover:text-teal-700 transition">Visit</Link>
-            <Link href="/track" className="hover:text-teal-700 transition">Track</Link>
+            <Link href="/shop" className="hover:text-slate-900 transition">Shop</Link>
+            <Link href="/visit" className="hover:text-slate-900 transition">Visit</Link>
+            <Link href="/track" className="hover:text-slate-900 transition">Track</Link>
           </nav>
           <div className="ml-auto flex items-center gap-2">
             <StoreNavUser user={user} />
@@ -48,18 +48,18 @@ export async function Chrome({ children }: { children: React.ReactNode }) {
           <div>
             <div className="flex items-center gap-3">
               <Logo height={64} />
-              <div className="font-bold text-lg text-teal-700 leading-tight">{BRAND.fullName}<div className="text-xs font-medium text-slate-500">{BRAND.tagline}</div></div>
+              <div className="font-bold text-lg text-slate-900 leading-tight">{BRAND.fullName}<div className="text-xs font-medium text-slate-500">{BRAND.tagline}</div></div>
             </div>
             <p className="mt-3 text-slate-600">{fullAddress}</p>
-            <p className="text-slate-600">Tel: <a className="underline text-teal-700 hover:text-teal-800" href={BRAND.phoneHref}>{BRAND.phone}</a></p>
-            <p className="text-slate-600">Email: <a className="underline text-teal-700 hover:text-teal-800" href={`mailto:${BRAND.email}`}>{BRAND.email}</a></p>
+            <p className="text-slate-600">Tel: <a className="underline text-slate-900 hover:text-black" href={BRAND.phoneHref}>{BRAND.phone}</a></p>
+            <p className="text-slate-600">Email: <a className="underline text-slate-900 hover:text-black" href={`mailto:${BRAND.email}`}>{BRAND.email}</a></p>
           </div>
           <div>
             <div className="font-semibold text-slate-900">Opening Hours</div>
             <ul className="mt-2 space-y-1 text-slate-600">
               {BRAND.hours.map((h) => <li key={h.day}>{h.day}: {h.time}</li>)}
             </ul>
-            <Link href="/visit" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-extrabold text-slate-900 inline-block mt-4 hover:bg-slate-50 hover:border-teal-500 transition">Directions & Click & Collect</Link>
+            <Link href="/visit" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-extrabold text-slate-900 inline-block mt-4 hover:bg-slate-50 hover:border-slate-900 transition">Directions & Click & Collect</Link>
           </div>
           <div>
             <div className="font-semibold text-slate-900">Important</div>
@@ -68,7 +68,7 @@ export async function Chrome({ children }: { children: React.ReactNode }) {
               <li>Challenge 25 — ID may be required on collection.</li>
               <li>Keep out of reach of children and pets.</li>
             </ul>
-            <a href={googleMapsUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-extrabold text-slate-900 inline-block mt-4 hover:bg-slate-50 hover:border-teal-500 transition">Open in Google Maps</a>
+            <a href={googleMapsUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-extrabold text-slate-900 inline-block mt-4 hover:bg-slate-50 hover:border-slate-900 transition">Open in Google Maps</a>
           </div>
         </div>
         <div className="border-t border-slate-200 py-4 text-center text-xs text-slate-500 flex flex-wrap items-center justify-center gap-3 bg-slate-50">

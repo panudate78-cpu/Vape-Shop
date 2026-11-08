@@ -26,7 +26,7 @@ export default function RegisterPage() {
         {err && <div className="text-red-400 text-sm">{err}</div>}
         <button className="btn-primary w-full" disabled={loading}>{loading ? 'Creating…' : 'Create account'}</button>
         <p className="text-xs text-slate-400 text-center">By registering you confirm you are aged 18 or over and accept our terms.</p>
-        <p className="text-sm text-center text-slate-500">Already got an account? <Link href="/login" className="text-teal-700 underline">Sign in</Link></p>
+        <p className="text-sm text-center text-slate-500">Already got an account? <Link href="/login" className="text-slate-900 underline">Sign in</Link></p>
       </form>
     </div>
   );

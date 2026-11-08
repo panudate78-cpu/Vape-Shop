@@ -26,7 +26,7 @@ export default function LoginPage() {
         <div><label className="label">Password</label><input className="input" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} /></div>
         {err && <div className="text-red-400 text-sm">{err}</div>}
         <button className="btn-primary w-full" disabled={loading}>{loading ? 'Signing in…' : 'Sign in'}</button>
-        <p className="text-sm text-center text-slate-500">No account? <Link href="/register" className="text-teal-700 underline">Register</Link></p>
+        <p className="text-sm text-center text-slate-500">No account? <Link href="/register" className="text-slate-900 underline">Register</Link></p>
       </form>
     </div>
   );

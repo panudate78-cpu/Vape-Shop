@@ -29,7 +29,7 @@ export function AgeGate() {
         </p>
         <p className="mt-3 text-xs text-slate-500">{fullAddress} · Challenge 25 on collection.</p>
         <div className="mt-5 flex gap-2">
-          <button onClick={accept} className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-extrabold px-4 py-3 text-sm transition shadow-sm">I am 18 or over</button>
+          <button onClick={accept} className="flex-1 rounded-xl bg-slate-900 hover:bg-black text-white font-extrabold px-4 py-3 text-sm transition shadow-sm">I am 18 or over</button>
           <a href="https://www.nhs.uk/better-health/quit-smoking/" className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition">Exit</a>
         </div>
       </div>

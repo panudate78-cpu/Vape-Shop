@@ -88,14 +88,14 @@ export function ShopClient({ categories, initialCategory, initialQ }: { categori
               {products.map((p) => {
                 const top = [...p.variants].sort((a, b) => b.stockQuantity - a.stockQuantity)[0];
                 return (
-                  <div key={p.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white hover:border-teal-500/50 transition">
+                  <div key={p.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white hover:border-slate-900/50 transition">
                     <Link href={`/product/${p.id}`}>
                       {p.images?.[0]
                         ? <PlaceholderImage src={p.images[0]} alt={p.name} className="h-44 w-full object-cover" />
-                        : <div className="h-44 bg-gradient-to-br from-teal-900/40 to-zinc-800 grid place-items-center text-5xl">☁️</div>}
+                        : <div className="h-44 bg-gradient-to-br from-slate-100 to-slate-200 grid place-items-center text-5xl">☁️</div>}
                     </Link>
                     <div className="p-3">
-                      <p className="text-[11px] font-bold uppercase text-teal-700">{p.brand} · {p.flavorProfile}</p>
+                      <p className="text-[11px] font-bold uppercase text-slate-900">{p.brand} · {p.flavorProfile}</p>
                       <Link href={`/product/${p.id}`} className="line-clamp-2 min-h-[2.5rem] text-sm font-bold text-slate-900 hover:underline">{p.name}</Link>
                       <p className="mt-1 text-xs text-slate-500">{p.variants.length} options · {p.totalStock} in stock</p>
                       <div className="mt-2 flex items-center justify-between">
@@ -111,7 +111,7 @@ export function ShopClient({ categories, initialCategory, initialQ }: { categori
                               sku: top.sku, unitPrice: parseFloat(top.priceOverride || '0'), stock: top.stockQuantity,
                             });
                           }}
-                          className={`rounded-lg px-3 py-1.5 text-xs font-extrabold ${top ? 'bg-teal-600 text-white hover:bg-teal-400' : 'bg-slate-100 text-slate-400'}`}
+                          className={`rounded-lg px-3 py-1.5 text-xs font-extrabold ${top ? 'bg-slate-900 text-white hover:bg-black' : 'bg-slate-100 text-slate-400'}`}
                         >+ Quick add</button>
                       </div>
                     </div>

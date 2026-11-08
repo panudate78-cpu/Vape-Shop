@@ -101,7 +101,7 @@ export default function ProductEditor({ mode, productId }: { mode: "create" | "e
         <div>
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-zinc-300">Product images</span>
-            <label className="cursor-pointer rounded-lg bg-teal-500 hover:bg-teal-400 text-black font-extrabold px-3 py-1.5 text-xs">
+            <label className="cursor-pointer rounded-lg bg-amber-400 hover:bg-amber-300 text-black font-extrabold px-3 py-1.5 text-xs">
               ⬆ Upload image
               <input
                 type="file"
@@ -138,7 +138,7 @@ export default function ProductEditor({ mode, productId }: { mode: "create" | "e
                   <div key={i} className="group relative aspect-square overflow-hidden rounded-lg border border-white/10 bg-zinc-950">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={u} alt="" className="h-full w-full object-cover" onError={(e) => ((e.target as HTMLImageElement).style.opacity = '0.2')} />
-                    {i === 0 && <span className="absolute left-1 top-1 rounded bg-teal-500 px-1.5 py-0.5 text-[10px] font-black text-black">MAIN</span>}
+                    {i === 0 && <span className="absolute left-1 top-1 rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-black text-black">MAIN</span>}
                     <button type="button" onClick={() => {
                       const copy = urls.slice(); copy.splice(i, 1);
                       setForm({ ...form, images: copy.join('\n') });

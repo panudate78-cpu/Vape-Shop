@@ -54,14 +54,14 @@ export default function ProductPage() {
         {product.images?.[0] ? <PlaceholderImage src={product.images[0]} alt={product.name} className="h-full w-full object-cover" /> : <span className="text-7xl">☁️</span>}
       </div>
       <div>
-        <div className="text-xs text-teal-400 uppercase tracking-wide font-bold">{product.brand}{product.categoryName ? ' · ' + product.categoryName : ''}</div>
+        <div className="text-xs text-slate-900 uppercase tracking-wide font-bold">{product.brand}{product.categoryName ? ' · ' + product.categoryName : ''}</div>
         <h1 className="text-3xl md:text-4xl font-black mt-1 text-slate-900 leading-tight">{product.name}</h1>
         <p className="text-slate-700 mt-3">{product.description}</p>
         <div className="mt-3 text-sm text-slate-500 space-y-1">
           {product.vgPgRatio && <div>VG/PG: {product.vgPgRatio}</div>}
           {product.flavorProfile && <div>Profile: {product.flavorProfile}</div>}
         </div>
-        <div className="mt-4 text-4xl font-black text-teal-400">
+        <div className="mt-4 text-4xl font-black text-slate-900">
           {v ? gbp(v.price) : gbp(Math.min(...variants.map((x) => x.price)))}
         </div>
         <div className="mt-5">
@@ -73,7 +73,7 @@ export default function ProductPage() {
               const out = vv.stockQuantity === 0;
               return (
                 <button key={vv.id} onClick={() => setSel(vv.id)} disabled={out}
-                  className={`text-left rounded-xl border p-3 text-sm transition ${active ? 'border-teal-400 bg-teal-500/10' : 'border-slate-200 hover:border-white/30'} ${out ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                  className={`text-left rounded-xl border p-3 text-sm transition ${active ? 'border-slate-900 bg-slate-50' : 'border-slate-200 hover:border-slate-400'} ${out ? 'opacity-40 cursor-not-allowed' : ''}`}>
                   <div className="flex items-center gap-2">
                     {vv.color && /^#([0-9a-f]{3}){1,2}$/i.test(vv.color) && (
                       <span className="h-4 w-4 rounded-full border border-slate-300" style={{ background: vv.color }} />
@@ -100,7 +100,7 @@ export default function ProductPage() {
                 unitPrice: v.price, stock: v.stockQuantity,
               });
             }}
-            className={`w-full rounded-xl px-6 py-3 text-sm font-extrabold ${v && v.stockQuantity > 0 ? 'bg-teal-600 text-white hover:bg-teal-400' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
+            className={`w-full rounded-xl px-6 py-3 text-sm font-extrabold ${v && v.stockQuantity > 0 ? 'bg-slate-900 text-white hover:bg-black' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
           >
             {v && v.stockQuantity > 0 ? 'Add to cart' : 'Out of stock'}
           </button>

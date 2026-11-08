@@ -32,7 +32,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
               <p><b className="text-slate-900">Check:</b></p>
               <ol className="list-decimal list-inside space-y-1 text-slate-500">
                 <li>Open the Neon console and confirm the database isn't paused.</li>
-                <li>Double-check <code className="text-teal-700">DATABASE_URL</code> in Vercel → Settings → Environment Variables.</li>
+                <li>Double-check <code className="text-slate-900">DATABASE_URL</code> in Vercel → Settings → Environment Variables.</li>
                 <li>Redeploy the site and try again.</li>
               </ol>
             </div>
@@ -41,7 +41,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
           <p className="mt-3 text-slate-500 text-sm">Sorry, an unexpected error occurred. Please try again.</p>
         )}
         <div className="mt-6 flex gap-2 justify-center">
-          <button onClick={() => reset()} className="rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-extrabold px-5 py-2.5 text-sm">Try again</button>
+          <button onClick={() => reset()} className="rounded-xl bg-slate-900 hover:bg-black text-white font-extrabold px-5 py-2.5 text-sm">Try again</button>
           <a href="/" className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-bold text-slate-900 hover:bg-slate-100">Home</a>
         </div>
         {error.digest && <p className="mt-4 text-[11px] text-slate-500">Digest: {error.digest}</p>}

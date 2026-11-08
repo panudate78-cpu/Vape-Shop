@@ -28,6 +28,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: "/shop", label: "🛍 View Store" },
   ];
   return (
+    <div className="admin-dark min-h-screen">
     <div className="mx-auto max-w-7xl px-4 py-6">
       <div className="flex items-center gap-3">
         <h1 className="text-xl font-black text-white">Admin Dashboard</h1>
@@ -39,6 +40,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         ))}
       </nav>
       <div className="mt-6">{children}</div>
+    </div>
     </div>
   );
 }

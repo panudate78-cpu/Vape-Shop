@@ -49,12 +49,12 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
           <h1 className="text-2xl font-bold">Order #{order.id}</h1>
           <div className="text-sm text-slate-500">Placed {new Date(order.createdAt!).toLocaleString()}</div>
         </div>
-        <div className="mt-1 text-teal-700">{statusLabel(order.status)}</div>
+        <div className="mt-1 text-slate-900">{statusLabel(order.status)}</div>
         {order.trackingNumber && <div className="text-sm mt-1">Tracking: <span className="font-mono">{order.trackingNumber}</span> {order.carrier && `(${order.carrier})`}</div>}
         <div className="mt-6 flex justify-between text-xs">
           {steps.map((label, i) => (
-            <div key={label} className={`flex-1 text-center ${i <= Math.max(trackIndex, order.paymentStatus === 'paid' ? 1 : 0) ? 'text-teal-600' : 'text-slate-500'}`}>
-              <div className={`h-2 rounded-full mx-1 ${i <= Math.max(trackIndex, order.paymentStatus === 'paid' ? 1 : 0) ? 'bg-teal-500' : 'bg-slate-100'}`} />
+            <div key={label} className={`flex-1 text-center ${i <= Math.max(trackIndex, order.paymentStatus === 'paid' ? 1 : 0) ? 'text-slate-900' : 'text-slate-500'}`}>
+              <div className={`h-2 rounded-full mx-1 ${i <= Math.max(trackIndex, order.paymentStatus === 'paid' ? 1 : 0) ? 'bg-slate-900' : 'bg-slate-100'}`} />
               <div className="mt-1">{label}</div>
             </div>
           ))}
@@ -77,8 +77,8 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
         <div className="border-t border-slate-200 mt-3 pt-3 space-y-1 text-sm">
           <div className="flex justify-between"><span>Subtotal</span><span>{formatPrice(order.subtotal)}</span></div>
           <div className="flex justify-between"><span>Shipping</span><span>{Number(order.shippingCost) === 0 ? 'Free' : formatPrice(order.shippingCost)}</span></div>
-          {Number(order.discount) > 0 && <div className="flex justify-between text-teal-700"><span>Discount</span><span>-{formatPrice(order.discount)}</span></div>}
-          <div className="flex justify-between font-bold text-lg"><span>Total</span><span className="text-teal-600">{formatPrice(order.totalAmount)}</span></div>
+          {Number(order.discount) > 0 && <div className="flex justify-between text-slate-900"><span>Discount</span><span>-{formatPrice(order.discount)}</span></div>}
+          <div className="flex justify-between font-bold text-lg"><span>Total</span><span className="text-slate-900">{formatPrice(order.totalAmount)}</span></div>
         </div>
       </div>
 
