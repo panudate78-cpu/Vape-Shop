@@ -6,6 +6,7 @@ import { LogoutButton } from './logout-button';
 import { CartButton } from './cart-button';
 import { CartDrawer } from './cart-drawer';
 import { StoreNavUser } from './nav-user';
+import { Logo } from './logo';
 
 export async function Chrome({ children }: { children: React.ReactNode }) {
   const session = await getSession();
@@ -23,8 +24,7 @@ export async function Chrome({ children }: { children: React.ReactNode }) {
         </div>
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2 font-black text-xl">
-            <span className="h-9 w-9 rounded-lg bg-teal-500 text-zinc-950 grid place-items-center text-xl">☁</span>
-            <span className="hidden sm:inline">{BRAND.shortName || BRAND.name}</span>
+            <Logo size={40} showWord />
           </Link>
           <nav className="hidden md:flex gap-4 text-sm ml-2">
             <Link href="/shop" className="hover:text-teal-300">Shop</Link>
@@ -45,8 +45,10 @@ export async function Chrome({ children }: { children: React.ReactNode }) {
       <footer className="border-t border-white/10 mt-12 bg-zinc-950">
         <div className="max-w-7xl mx-auto px-4 py-10 grid md:grid-cols-3 gap-8 text-sm">
           <div>
-            <div className="font-bold text-lg text-teal-400">{BRAND.fullName}</div>
-            <p className="mt-2 text-zinc-400">{BRAND.tagline}</p>
+            <div className="flex items-center gap-3">
+              <Logo size={44} />
+              <div className="font-bold text-lg text-teal-400 leading-tight">{BRAND.fullName}<div className="text-xs font-medium text-zinc-400">{BRAND.tagline}</div></div>
+            </div>
             <p className="mt-3 text-zinc-400">{fullAddress}</p>
             <p className="text-zinc-400">Tel: <a className="underline" href={BRAND.phoneHref}>{BRAND.phone}</a></p>
             <p className="text-zinc-400">Email: <a className="underline" href={`mailto:${BRAND.email}`}>{BRAND.email}</a></p>
