@@ -2,7 +2,7 @@ export const BRAND = {
   name: 'Dr Cloud',
   shortName: 'Dr Cloud',
   fullName: 'Dr Cloud Chessington',
-  tagline: 'Vape & Mobile Store',
+  tagline: 'The Mobile & Vape Store',
   address: {
     line1: 'Unit 4, Bridge Road',
     city: 'Chessington',

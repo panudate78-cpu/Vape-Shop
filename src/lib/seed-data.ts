@@ -1,6 +1,6 @@
 export const seedCategories = [
   { name: 'E-Liquids', slug: 'e-liquids', description: 'Shortfills, nic salts and 10ml TPD e-liquids.' },
-  { name: 'Pod Systems', slug: 'pod-systems', description: 'Beginner-friendly refillable pod kits and disposables.' },
+  { name: 'Pod Systems', slug: 'pod-systems', description: 'Refillable pod kits and starter systems — perfect for new vapers.' },
   { name: 'Mods & Kits', slug: 'mods-kits', description: 'Sub-ohm kits and advanced mods.' },
   { name: 'Coils & Tanks', slug: 'coils-tanks', description: 'Replacement coils and sub-ohm tanks.' },
   { name: 'Accessories', slug: 'accessories', description: 'Batteries, chargers, cases, lanyards & gear.' },
@@ -19,28 +19,26 @@ export const seedProducts: Array<{
   variants: Array<{ flavor: string; nic: string; size: string; color?: string; price?: number; stock: number }>;
 }> = [
   {
-    name: 'Lost Mary BM600',
-    brand: 'Lost Mary',
+    name: 'SMOK Novo 4 Mini Pod Kit',
+    brand: 'SMOK',
     categorySlug: 'pod-systems',
-    description: 'Compact pre-filled disposable with mesh coil for a smooth MTL draw. 20mg nic salt, TPD-compliant.',
-    basePrice: 5.99, vgPgRatio: '50/50', flavorProfile: 'Fruit', tags: ['bestseller'],
+    description: 'Compact refillable pod kit with 900mAh battery, adjustable airflow and 2ml pods. Perfect MTL starter kit.',
+    basePrice: 22.99, vgPgRatio: '50/50', flavorProfile: '—', tags: ['bestseller', 'starter'],
     variants: [
-      { flavor: 'Blueberry Sour Raspberry', nic: '20mg', size: '600 puffs', color: '#4f46e5', stock: 40 },
-      { flavor: 'Watermelon Ice', nic: '20mg', size: '600 puffs', color: '#16a34a', stock: 32 },
-      { flavor: 'Triple Melon', nic: '20mg', size: '600 puffs', color: '#f97316', stock: 18 },
-      { flavor: 'Cherry Ice', nic: '20mg', size: '600 puffs', color: '#dc2626', stock: 5 },
+      { flavor: 'Black', nic: '—', size: '1 kit', color: '#111827', price: 22.99, stock: 18 },
+      { flavor: 'Blue Grey', nic: '—', size: '1 kit', color: '#475569', price: 22.99, stock: 12 },
+      { flavor: 'Matte Silver', nic: '—', size: '1 kit', color: '#94a3b8', price: 24.99, stock: 8 },
     ],
   },
   {
-    name: 'Elf Bar 600',
-    brand: 'Elf Bar',
+    name: 'Uwell Caliburn G3 Pod Kit',
+    brand: 'Uwell',
     categorySlug: 'pod-systems',
-    description: 'The UK’s favourite disposable. Up to 600 puffs, 20mg nic salt, TPD-compliant.',
-    basePrice: 5.49, vgPgRatio: '50/50', flavorProfile: 'Fruit/Ice', tags: ['popular'],
+    description: 'Premium refillable pod system with 900mAh battery, 2.5ml top-fill pods and adjustable airflow. MTL + RDTL capable.',
+    basePrice: 28.99, vgPgRatio: '50/50', flavorProfile: '—', tags: ['popular', 'premium'],
     variants: [
-      { flavor: 'Blue Razz Lemonade', nic: '20mg', size: '600 puffs', color: '#3b82f6', stock: 60 },
-      { flavor: 'Strawberry Kiwi', nic: '20mg', size: '600 puffs', color: '#ef4444', stock: 24 },
-      { flavor: 'Pink Grapefruit', nic: '20mg', size: '600 puffs', color: '#ec4899', stock: 12 },
+      { flavor: 'Black', nic: '—', size: '1 kit', color: '#111827', price: 28.99, stock: 10 },
+      { flavor: 'Prism Blue', nic: '—', size: '1 kit', color: '#0ea5e9', price: 28.99, stock: 6 },
     ],
   },
   {

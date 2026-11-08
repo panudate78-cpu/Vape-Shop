@@ -120,10 +120,10 @@ export default function Home() {
         <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-5">
           {[
             { slug: "e-liquids", emoji: "🧴", blurb: "Shortfills & salts" },
-            { slug: "pod-systems", emoji: "🔋", blurb: "Pods & starters" },
-            { slug: "mods-kits", emoji: "⚡", blurb: "200W beasts" },
+            { slug: "pod-systems", emoji: "🔋", blurb: "Pod kits & starters" },
+            { slug: "mods-kits", emoji: "⚡", blurb: "Mods & sub-ohm kits" },
             { slug: "coils-tanks", emoji: "🌀", blurb: "Coils & tanks" },
-            { slug: "accessories", emoji: "🎒", blurb: "Gear & extras" },
+            { slug: "accessories", emoji: "🎒", blurb: "Batteries, chargers & gear" },
           ].map((c) => (
             <Link key={c.slug} href={`/shop?category=${c.slug}`} className="rounded-2xl border border-white/10 bg-zinc-900 p-5 hover:border-teal-400/60 hover:bg-zinc-800 transition">
               <div className="text-3xl">{c.emoji}</div>

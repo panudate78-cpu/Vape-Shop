@@ -1,39 +1,47 @@
 import { classNames as clsx } from '@/lib/format';
 
 type Props = {
-  /** Visual height of the logo card in px. Width scales automatically to
-   *  preserve the sign's landscape aspect ratio. */
+  /** Visual height of the logo card in px. Width scales to match the logo's
+   *  natural aspect ratio (the Dr Cloud cloud is near-square). */
   height?: number;
   className?: string;
+  /** Optional "glow" accent (teal halo) used on dark hero sections. */
+  glow?: boolean;
 };
 
 /**
- * Dr Cloud shop-sign logo.
+ * Dr Cloud brand logo.
  *
- * The source photo is a wide landscape shop fascia (white 3-lobe cloud with
- * "DR CLOUD" engraved against a muted blue-grey plate), so the card is
- * landscape — never square. We render it on a soft white rounded card with
- * a tiny bit of padding; the photo fills the card with object-contain so no
- * part of the sign gets cropped.
+ * Source: /public/images/dr-cloud-logo.png — the clean black-and-white
+ * cloud mark with "DR CLOUD / THE MOBILE & VAPE STORE" inside, designed
+ * for use on dark backgrounds.
+ *
+ * The logo is rendered on a white rounded-square card so the white cloud
+ * reads against dark UI, and uses object-contain to preserve the full
+ * cloud shape (no cropping).
  */
-export function Logo({ height = 44, className }: Props) {
-  // The shop sign is roughly 3:1 landscape.
-  const width = Math.round(height * 3);
+export function Logo({ height = 48, className, glow = false }: Props) {
+  // The B&W logo is near-square (0.86 width/height). Add a touch of
+  // horizontal breathing room so the card looks natural.
+  const width = Math.round(height * 1.05);
   return (
     <div className={clsx('flex items-center justify-center', className)}>
       <span
-        className="inline-flex items-center justify-center rounded-2xl bg-white p-1 shadow-md"
-        style={{ width, height }}
+        className={clsx(
+          'inline-flex items-center justify-center rounded-2xl bg-white',
+          glow && 'shadow-[0_0_30px_rgba(20,184,166,0.35)]',
+        )}
+        style={{ width, height, padding: Math.max(2, Math.round(height * 0.06)) }}
         aria-label="Dr Cloud"
         role="img"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/images/dr-cloud-logo.jpg"
+          src="/images/dr-cloud-logo.png"
           alt="Dr Cloud"
-          width={width - 8}
-          height={height - 8}
-          className="h-full w-full object-contain rounded-xl"
+          width={width}
+          height={height}
+          className="h-full w-full object-contain"
         />
       </span>
     </div>
