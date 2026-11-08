@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getSession } from '@/lib/session';
-import { BRAND, fullAddress, googleMapsUrl } from '@/lib/brand';
+import { BRAND, fullAddress, shortAddress, googleMapsUrl } from '@/lib/brand';
 import { AgeGate } from './age-gate';
 import { LogoutButton } from './logout-button';
 import { CartButton } from './cart-button';
@@ -20,7 +20,7 @@ export async function Chrome({ children }: { children: React.ReactNode }) {
       </div>
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
         <div className="bg-[#64B5F6] text-white text-xs md:text-sm text-center py-1.5 font-semibold">
-          {fullAddress} · Same-day Click & Collect · Call <a href={BRAND.phoneHref} className="underline hover:text-white/80">{BRAND.phone}</a>
+          {shortAddress} · Same-day Click & Collect · Call <a href={BRAND.phoneHref} className="underline hover:text-white/80">{BRAND.phone}</a>
         </div>
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4 relative">
           <Link href="/" aria-label="Dr Cloud — home" className="flex items-center shrink-0">
