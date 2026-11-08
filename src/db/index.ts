@@ -10,17 +10,23 @@ function getDb() {
   if (_dbError) throw _dbError;
   if (!process.env.DATABASE_URL) {
     _dbError = new Error(
-      'DATABASE_URL is not set. Add your Neon (Postgres) connection string in the Vercel dashboard → Project → Settings → Environment Variables → DATABASE_URL, then redeploy. (Locally: create a .env file from .env.example.)',
+      'DATABASE_URL is not set. Add your Neon (Postgres) connection string in Vercel → Settings → Environment Variables → DATABASE_URL, then redeploy. (Locally: create a .env file from .env.example.)',
     );
     throw _dbError;
   }
   try {
-    const client = postgres(process.env.DATABASE_URL, {
-      max: 10,
-      // Neon requires SSL; idle timeout keeps serverless conn's healthy.
+    // Neon-friendly config: pooled connections need prepare=false and
+    // short max_lifetime so serverless functions don't hit stale pooled sockets
+    // (which manifest as ECONNRESET on hot queries).
+    const url = process.env.DATABASE_URL;
+    const isPooled = /-pooler\./.test(url);
+    const client = postgres(url, {
+      max: isPooled ? 1 : 10,
       ssl: 'require',
-      idle_timeout: 20,
-      connect_timeout: 10,
+      connect_timeout: 15,
+      idle_timeout: isPooled ? 0 : 20,
+      max_lifetime: isPooled ? 60 * 5 : 60 * 30,
+      prepare: isPooled ? false : true, // Neon pooler doesn't support named prepared statements
     });
     _db = drizzle(client, { schema });
     return _db;
@@ -30,14 +36,12 @@ function getDb() {
   }
 }
 
-// Reset cached error between requests in dev (so fixing .env doesn't need a server restart).
+// Reset cached error between requests in dev (so fixing .env doesn't need a restart).
 if (process.env.NODE_ENV !== 'production') {
   setInterval(() => { _db = null; _dbError = null; }, 5000).unref?.();
 }
 
-// Proxy so `import { db } from '@/db'` is lazy — avoids crashing at build time when
-// DATABASE_URL isn't set, and throws a helpful message at request time instead of
-// a generic Next.js "Application error" digest page.
+// Lazy proxy — avoids crashing at build time when DATABASE_URL isn't set.
 export const db = new Proxy({} as ReturnType<typeof drizzle>, {
   get(_t, prop) {
     const real = getDb();

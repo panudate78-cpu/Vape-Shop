@@ -122,9 +122,9 @@ const productSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  // Admin-only (lightweight check — already gated by admin layout for UI; this is for POST)
-  const cookie = req.headers.get('cookie') || '';
-  if (!cookie) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { requireAdmin } = await import('@/lib/session');
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: 'Forbidden — sign in as admin' }, { status: 403 });
   const body = await req.json().catch(() => ({}));
   const parsed = productSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'Bad product', issues: parsed.error.flatten() }, { status: 400 });

@@ -53,6 +53,9 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 }
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
+  const { requireAdmin } = await import('@/lib/session');
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: 'Forbidden — sign in as admin' }, { status: 403 });
   const id = Number(params.id);
   if (isNaN(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const body = await req.json().catch(() => ({}));

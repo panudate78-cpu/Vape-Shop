@@ -98,7 +98,57 @@ export default function ProductEditor({ mode, productId }: { mode: "create" | "e
           <label className="text-xs font-bold text-zinc-300">Tags (comma separated)<input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="shortfill, bestseller" className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-sm outline-none" /></label>
           <label className="flex items-center gap-2 text-xs font-bold text-zinc-300"><input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} className="accent-amber-400" /> Active / visible in store</label>
         </div>
-        <label className="block text-xs font-bold text-zinc-300">Image URLs (one per line)<textarea value={form.images} onChange={(e) => setForm({ ...form, images: e.target.value })} rows={3} placeholder="https://… (or leave blank for gradient placeholder)" className="mt-1 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 font-mono text-xs outline-none" /></label>
+        <div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-zinc-300">Product images</span>
+            <label className="cursor-pointer rounded-lg bg-teal-500 hover:bg-teal-400 text-black font-extrabold px-3 py-1.5 text-xs">
+              ⬆ Upload image
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  setMsg('Uploading…');
+                  const fd = new FormData();
+                  fd.append('file', f);
+                  try {
+                    const r = await fetch('/api/upload', { method: 'POST', body: fd });
+                    const j = await r.json();
+                    if (!r.ok) { setMsg(j.error || 'Upload failed'); return; }
+                    const existing = form.images.split('\n').map((s) => s.trim()).filter(Boolean);
+                    setForm({ ...form, images: [...existing, j.url].join('\n') });
+                    setMsg('Uploaded ✓');
+                  } catch { setMsg('Upload failed — are you signed in as admin?'); }
+                  e.target.value = '';
+                }}
+              />
+            </label>
+          </div>
+          <p className="text-[11px] text-zinc-500 mt-1">Upload from your computer, or paste external URLs (one per line). First image is the main product photo.</p>
+          <textarea value={form.images} onChange={(e) => setForm({ ...form, images: e.target.value })} rows={3} placeholder="/uploads/xxx.jpg&#10;https://example.com/bottle.jpg"
+            className="mt-2 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 font-mono text-xs outline-none" />
+          {(() => {
+            const urls = form.images.split('\n').map((s) => s.trim()).filter(Boolean);
+            if (!urls.length) return null;
+            return (
+              <div className="mt-3 grid grid-cols-4 gap-2">
+                {urls.map((u, i) => (
+                  <div key={i} className="group relative aspect-square overflow-hidden rounded-lg border border-white/10 bg-zinc-950">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={u} alt="" className="h-full w-full object-cover" onError={(e) => ((e.target as HTMLImageElement).style.opacity = '0.2')} />
+                    {i === 0 && <span className="absolute left-1 top-1 rounded bg-teal-500 px-1.5 py-0.5 text-[10px] font-black text-black">MAIN</span>}
+                    <button type="button" onClick={() => {
+                      const copy = urls.slice(); copy.splice(i, 1);
+                      setForm({ ...form, images: copy.join('\n') });
+                    }} className="absolute right-1 top-1 rounded-full bg-red-500/90 px-2 py-0.5 text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition">✕</button>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
 
         <div>
           <h3 className="font-extrabold text-white">Variants ({variants.filter((v) => !v._delete).length})</h3>

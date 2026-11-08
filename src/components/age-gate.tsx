@@ -19,7 +19,7 @@ export function AgeGate() {
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="max-w-md w-full rounded-2xl border border-teal-500/40 bg-zinc-900 p-6 text-center">
         <div className="mx-auto">
-          <Logo size={96} className="justify-center" />
+          <Logo height={96} className="justify-center" />
         </div>
         <div className="mx-auto mt-4 h-12 w-12 rounded-full bg-teal-500 text-zinc-950 font-black text-2xl flex items-center justify-center">18+</div>
         <h1 className="mt-4 text-2xl font-black text-white">Welcome to {BRAND.fullName}</h1>

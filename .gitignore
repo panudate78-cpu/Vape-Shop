@@ -1,3 +1,4 @@
+!public/uploads/.gitkeep
 *.log
 .DS_Store
 .env
@@ -6,3 +7,4 @@
 dist
 drizzle
 node_modules
+public/uploads/*
