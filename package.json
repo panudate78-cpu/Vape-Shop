@@ -1,0 +1,40 @@
+{
+  "name": "dr-cloud-vape-shop",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "next lint",
+    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "db:studio": "drizzle-kit studio",
+    "seed": "tsx src/lib/seed.ts"
+  },
+  "dependencies": {
+    "bcryptjs": "2.4.3",
+    "clsx": "2.1.1",
+    "dotenv": "^18.0.9",
+    "drizzle-orm": "0.33.0",
+    "iron-session": "8.0.4",
+    "next": "14.2.15",
+    "postgres": "3.4.4",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "0.5.9",
+    "@types/bcryptjs": "2.4.6",
+    "@types/node": "20.16.11",
+    "@types/react": "18.3.11",
+    "@types/react-dom": "18.3.0",
+    "autoprefixer": "10.4.20",
+    "drizzle-kit": "0.24.2",
+    "postcss": "8.4.47",
+    "tailwindcss": "3.4.13",
+    "tsx": "4.19.1",
+    "typescript": "5.6.3"
+  }
+}

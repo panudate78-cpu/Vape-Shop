@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+html, body { @apply bg-zinc-950 text-zinc-100 antialiased; }
+.btn {@apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition;}
+.btn-primary {@apply btn bg-teal-500 hover:bg-teal-400 text-zinc-950;}
+.btn-outline {@apply btn border border-zinc-700 hover:border-teal-400 hover:text-teal-300;}
+.btn-danger {@apply btn bg-red-600 hover:bg-red-500 text-white;}
+.btn-amber {@apply btn bg-amber-500 hover:bg-amber-400 text-zinc-950;}
+.input {@apply w-full rounded-lg bg-zinc-900 border border-zinc-700 px-3 py-2 text-zinc-100 focus:border-teal-400 focus:ring-teal-400/20 focus:ring-2 outline-none;}
+.label {@apply block text-sm font-medium text-zinc-300 mb-1;}
+.card {@apply rounded-xl bg-zinc-900/70 border border-zinc-800 p-4;}
+.tag {@apply inline-flex items-center text-xs rounded-full px-2 py-0.5;}
+.nicotine-banner {@apply bg-amber-500 text-zinc-950 text-center text-xs md:text-sm font-semibold py-1 px-3;}
