@@ -188,3 +188,21 @@ Use QBO's OAuth 2.0 + QuickBooks Accounting API to push sales receipts, refunds,
 These purpose-built e-commerce ↔ QBO connectors handle VAT, payout reconciliation, and Square/Stripe matching out of the box. You just point them at your Dr Cloud store's public URLs — they work with standard carts but will need a small custom integration for a bespoke Next.js store, so only worth it once you're doing real volume.
 
 **VAT note:** UK vape e-liquid carries 20% standard-rate VAT; nicotine-free hardware/accessories may also be standard-rated. Currently prices are entered inclusive of VAT at till (as is standard for UK retail). When importing, mark the Product/Service items in QBO as **Standard (20%) Inclusive of VAT** so gross figures match what the customer paid. Let me know if you want me to add a VAT column to the export.
+
+### Xero export
+
+`GET /api/admin/xero` produces a Xero-compatible Sales Invoices CSV (columns: *ContactName, *InvoiceNumber, *InvoiceDate, *DueDate, Description, *Quantity, *UnitAmount, *AccountCode, *TaxType, Reference, Status, Currency, BrandingTheme). Import via **Business → Invoices → Import**.
+
+- Default sales account code **200** (override with `XERO_SALES_ACCOUNT` or `?salesAccount=400`).
+- Default tax rate **"20% (VAT on Income)"** (override with `XERO_TAX_RATE` or `?taxRate=...` — use the exact rate name as configured in your Xero chart).
+- Invoices are AUTHORISED (unpaid); after import, either mark them paid in Xero or reconcile against your Stripe/Square bank feed.
+
+### Sage (UK) export
+
+`GET /api/admin/sage` produces a Sage Business Cloud / Sage 50 audit CSV (Type=SI, columns: Type, Account Reference, Date, Reference, Details, Net, Tax Code, Tax, Total). Because UK retail prices are **VAT-inclusive**, each line is automatically split into Net + VAT at 20% (T1).
+
+- Default sales nominal code **4000** (override with `SAGE_SALES_NOMINAL` / `?nominalCode=`).
+- Default tax code **1** (T1 = standard 20% VAT).
+- Customer Account Reference is auto-derived as the first 8 alphanumerics of the customer name (Sage limit). Create those customer records in Sage before import, or set `?customerRef=WALKIN` to batch everything to one cash customer.
+
+All three exports support the same `?from=YYYY-MM-DD&to=YYYY-MM-DD&source=online|pos|all` filters.
