@@ -5,7 +5,6 @@ import { gbp } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import { BRAND, fullAddress } from "@/lib/brand";
 import { PlaceholderImage } from "@/components/placeholder-image";
-import { Logo } from "@/components/logo";
 
 type P = {
   id: string; name: string; brand: string; basePrice: string; images: string[];
@@ -101,7 +100,6 @@ export default function Home() {
       {/* VISIT STRIP */}
       <section className="border-y border-white/10 bg-zinc-900/60">
         <div className="mx-auto flex max-w-7xl flex-col items-start gap-3 px-4 py-4 sm:flex-row sm:items-center">
-          <Logo height={80} />
           <div className="text-sm">
             <p className="font-extrabold text-white">Pop in — {BRAND.fullName}, {fullAddress}</p>
             <p className="text-xs text-zinc-400">Click & Collect ready same day · Call <a className="font-bold text-teal-300" href={BRAND.phoneHref}>{BRAND.phone}</a> for stock & repair quotes · <a className="underline" href={BRAND.mapsUrl} target="_blank" rel="noreferrer">Get directions</a></p>
