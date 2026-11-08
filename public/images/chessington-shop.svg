@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="60%" stop-color="#134e4a"/>
+      <stop offset="100%" stop-color="#064e3b"/>
+    </linearGradient>
+    <linearGradient id="store" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1f2937"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  {/* glow */}
+  <circle cx="300" cy="300" r="240" fill="#14b8a6" opacity="0.25"/>
+  <circle cx="1200" cy="500" r="300" fill="#10b981" opacity="0.2"/>
+  {/* pavement */}
+  <rect y="720" width="1600" height="180" fill="#111827"/>
+  <rect y="720" width="1600" height="8" fill="#1f2937"/>
+  {/* shop front */}
+  <rect x="260" y="350" width="1080" height="370" rx="18" fill="url(#store)"/>
+  <rect x="260" y="350" width="1080" height="80" rx="18" fill="#0b1220"/>
+  {/* signage */}
+  <rect x="420" y="370" width="760" height="60" rx="10" fill="#14b8a6"/>
+  <text x="800" y="412" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-weight="900" font-size="36" fill="#042f2e">Dr CLOUD — VAPE & MOBILE</text>
+  {/* windows */}
+  <rect x="320" y="460" width="420" height="200" rx="8" fill="#0b3b38" stroke="#14b8a6" stroke-width="3"/>
+  <rect x="860" y="460" width="420" height="200" rx="8" fill="#0b3b38" stroke="#14b8a6" stroke-width="3"/>
+  <text x="530" y="570" text-anchor="middle" font-family="Inter,sans-serif" font-weight="900" font-size="52" fill="#99f6e4">☁</text>
+  <text x="1070" y="570" text-anchor="middle" font-family="Inter,sans-serif" font-weight="900" font-size="52" fill="#99f6e4">📱</text>
+  {/* door */}
+  <rect x="750" y="540" width="100" height="180" rx="6" fill="#052a28" stroke="#14b8a6" stroke-width="3"/>
+  <circle cx="835" cy="640" r="5" fill="#14b8a6"/>
+  {/* address strip */}
+  <text x="800" y="760" text-anchor="middle" font-family="Inter,sans-serif" font-size="20" fill="#5eead4">Unit 4, Bridge Road, Chessington KT9 2RT · 07947 357934</text>
+</svg>

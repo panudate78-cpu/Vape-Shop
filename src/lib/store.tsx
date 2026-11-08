@@ -1,7 +1,12 @@
-"use client";
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+'use client';
+import { createContext, useContext, useEffect, useMemo, useState, useCallback, type ReactNode } from 'react';
+
+export type User = {
+  id: number; email: string; role: 'CUSTOMER' | 'ADMIN' | string; fullName?: string;
+};
 
 export type CartLine = {
+  lineId: string;
   variantId: string;
   productId: string;
   name: string;
@@ -14,96 +19,99 @@ export type CartLine = {
   quantity: number;
 };
 
-type StoreCtx = {
+type Store = {
   cart: CartLine[];
-  addToCart: (l: Omit<CartLine, "quantity">, qty?: number) => void;
-  updateQty: (variantId: string, qty: number) => void;
-  removeLine: (variantId: string) => void;
-  clearCart: () => void;
   cartOpen: boolean;
   setCartOpen: (v: boolean) => void;
-  subtotal: number;
-  count: number;
-  user: { id: string; email: string; role: string; fullName?: string | null } | null;
-  refreshUser: () => Promise<void>;
-  ageVerified: boolean;
-  setAgeVerified: (v: boolean) => void;
+  addToCart: (l: Omit<CartLine, 'lineId' | 'quantity'> & { quantity?: number }) => void;
+  removeFromCart: (lineId: string) => void;
+  setQuantity: (lineId: string, qty: number) => void;
+  clearCart: () => void;
+  cartCount: number;
+  cartSubtotal: number;
+  // Session / user (used by admin layout & account pages)
+  user: User | null;
+  setUser: (u: User | null) => void;
+  refreshUser: () => Promise<User | null>;
+  logout: () => Promise<void>;
 };
 
-const Ctx = createContext<StoreCtx | null>(null);
+const StoreCtx = createContext<Store | null>(null);
+const STORAGE_KEY = 'drcloud_cart_v1';
 
-export function StoreProvider({ children }: { children: React.ReactNode }) {
-  const [cart, setCart] = useState<CartLine[]>([]);
+export function StoreProvider({ children, initialCart }: { children: ReactNode; initialCart?: CartLine[] }) {
+  const [cart, setCart] = useState<CartLine[]>(initialCart || []);
   const [cartOpen, setCartOpen] = useState(false);
-  const [user, setUser] = useState<StoreCtx["user"]>(null);
-  const [ageVerified, setAgeVerifiedState] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [hydrated, setHydrated] = useState(false);
 
-  useEffect(() => {
+  const refreshUser = useCallback(async (): Promise<User | null> => {
     try {
-      const raw = localStorage.getItem("vs_cart");
-      if (raw) setCart(JSON.parse(raw));
-      const av = localStorage.getItem("vs_age_verified");
-      if (av === "1") setAgeVerifiedState(true);
-    } catch {}
-    refreshUser();
+      const r = await fetch('/api/auth/me', { cache: 'no-store' });
+      if (!r.ok) { setUser(null); return null; }
+      const d = await r.json();
+      setUser(d.user || null);
+      return d.user || null;
+    } catch { setUser(null); return null; }
+  }, []);
+
+  const logout = useCallback(async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    setUser(null);
   }, []);
 
   useEffect(() => {
-    try { localStorage.setItem("vs_cart", JSON.stringify(cart)); } catch {}
-  }, [cart]);
-
-  const setAgeVerified = (v: boolean) => {
-    setAgeVerifiedState(v);
     try {
-      if (v) {
-        localStorage.setItem("vs_age_verified", "1");
-        document.cookie = "vs_age_verified=1; path=/; max-age=31536000; SameSite=Lax";
-      } else {
-        localStorage.removeItem("vs_age_verified");
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) setCart(parsed);
       }
     } catch {}
-  };
+    setHydrated(true);
+    refreshUser();
+  }, [refreshUser]);
 
-  const refreshUser = async () => {
-    try {
-      const r = await fetch("/api/auth/me", { cache: "no-store" });
-      const j = await r.json();
-      setUser(j.user || null);
-    } catch { setUser(null); }
-  };
+  useEffect(() => {
+    if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
+  }, [cart, hydrated]);
 
-  const addToCart: StoreCtx["addToCart"] = (l, qty = 1) => {
+  useEffect(() => {
+    if (!hydrated) return;
+    const payload = cart.map((l) => ({ variantId: Number(l.variantId), quantity: l.quantity })).filter((l) => !isNaN(l.variantId));
+    fetch('/api/cart', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lines: payload }) }).catch(() => {});
+  }, [cart, hydrated]);
+
+  const addToCart: Store['addToCart'] = (line) => {
     setCart((prev) => {
-      const f = prev.find((x) => x.variantId === l.variantId);
-      if (f) {
-        return prev.map((x) =>
-          x.variantId === l.variantId ? { ...x, quantity: Math.min(x.stock || 99, x.quantity + qty) } : x
-        );
+      const idx = prev.findIndex((x) => x.variantId === line.variantId);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = { ...copy[idx], quantity: copy[idx].quantity + (line.quantity ?? 1) };
+        return copy;
       }
-      return [...prev, { ...l, quantity: Math.min(qty, l.stock || 99) }];
+      return [...prev, { ...line, lineId: crypto.randomUUID(), quantity: line.quantity ?? 1 } as CartLine];
     });
     setCartOpen(true);
   };
-  const updateQty = (variantId: string, qty: number) => {
-    setCart((prev) =>
-      qty <= 0 ? prev.filter((x) => x.variantId !== variantId) : prev.map((x) => (x.variantId === variantId ? { ...x, quantity: Math.min(qty, x.stock || 99) } : x))
-    );
-  };
-  const removeLine = (variantId: string) => setCart((prev) => prev.filter((x) => x.variantId !== variantId));
+
+  const removeFromCart = (lineId: string) => setCart((p) => p.filter((l) => l.lineId !== lineId));
+  const setQuantity = (lineId: string, qty: number) =>
+    setCart((p) => p.map((l) => (l.lineId === lineId ? { ...l, quantity: Math.max(1, Math.min(l.stock, qty)) } : l)));
   const clearCart = () => setCart([]);
 
-  const subtotal = useMemo(() => cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0), [cart]);
-  const count = useMemo(() => cart.reduce((s, l) => s + l.quantity, 0), [cart]);
+  const cartCount = useMemo(() => cart.reduce((s, l) => s + l.quantity, 0), [cart]);
+  const cartSubtotal = useMemo(() => cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0), [cart]);
 
-  return (
-    <Ctx.Provider value={{ cart, addToCart, updateQty, removeLine, clearCart, cartOpen, setCartOpen, subtotal, count, user, refreshUser, ageVerified, setAgeVerified }}>
-      {children}
-    </Ctx.Provider>
-  );
+  const value: Store = {
+    cart, cartOpen, setCartOpen, addToCart, removeFromCart, setQuantity, clearCart,
+    cartCount, cartSubtotal, user, setUser, refreshUser, logout,
+  };
+  return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;
 }
 
 export function useStore() {
-  const c = useContext(Ctx);
-  if (!c) throw new Error("useStore outside provider");
+  const c = useContext(StoreCtx);
+  if (!c) throw new Error('StoreProvider missing');
   return c;
 }

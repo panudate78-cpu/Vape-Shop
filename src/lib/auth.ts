@@ -1,67 +1,26 @@
-import bcrypt from "bcryptjs";
-import * as jose from "jose";
-import { cookies } from "next/headers";
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.AUTH_SECRET || "vape-shop-dev-secret-change-me-32chars!!"
-);
-export const COOKIE_NAME = "vs_session";
-
-export type SessionPayload = {
-  sub: string;
-  email: string;
-  role: "CUSTOMER" | "ADMIN";
-};
+import bcrypt from 'bcryptjs';
 
 export async function hashPassword(pw: string) {
-  const salt = await bcrypt.genSalt(10);
-  return bcrypt.hash(pw, salt);
+  return bcrypt.hash(pw, 12);
 }
 export async function verifyPassword(pw: string, hash: string) {
   return bcrypt.compare(pw, hash);
 }
 
-export async function signSession(payload: SessionPayload) {
-  return await new jose.SignJWT({ email: payload.email, role: payload.role })
-    .setProtectedHeader({ alg: "HS256" })
-    .setSubject(payload.sub)
-    .setIssuedAt()
-    .setExpirationTime("7d")
-    .sign(JWT_SECRET);
+export function ageFromDob(dob: string) {
+  // dob expected as YYYY-MM-DD
+  const d = new Date(dob);
+  if (isNaN(d.getTime())) return 0;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
+  return age;
+}
+export function isOfAge(dob: string, threshold = Number(process.env.NEXT_PUBLIC_AGE_THRESHOLD || 18)) {
+  return ageFromDob(dob) >= threshold;
 }
 
-export async function verifySession(token: string): Promise<SessionPayload | null> {
-  try {
-    const { payload } = await jose.jwtVerify(token, JWT_SECRET);
-    return {
-      sub: payload.sub as string,
-      email: payload.email as string,
-      role: payload.role as "CUSTOMER" | "ADMIN",
-    };
-  } catch {
-    return null;
-  }
-}
-
-export async function getSession(): Promise<SessionPayload | null> {
-  const store = await cookies();
-  const token = store.get(COOKIE_NAME)?.value;
-  if (!token) return null;
-  return verifySession(token);
-}
-
-export async function setSessionCookie(token: string) {
-  const store = await cookies();
-  store.set(COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
-}
-
-export async function clearSessionCookie() {
-  const store = await cookies();
-  store.delete(COOKIE_NAME);
-}
+// Re-export session helpers so older imports (from @/lib/auth) keep working.
+export { getSession, requireUser, requireAdmin } from './session';
+export type { SessionUser, SessionData, CartLine } from './session';

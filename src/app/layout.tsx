@@ -1,35 +1,20 @@
-import type { Metadata } from "next";
-import type { ReactNode } from "react";
-import "./globals.css";
-import { StoreProvider } from "@/lib/store";
-import { NicotineBanner, Header, CartDrawer, AgeGate, Footer } from "@/components/chrome";
+import './globals.css';
+import type { Metadata } from 'next';
+import { BRAND } from '@/lib/brand';
+import { Chrome } from '@/components/chrome';
+import { StoreProvider } from '@/lib/store';
 
 export const metadata: Metadata = {
-  title: "Dr Cloud Chessington — Vape Shop & Mobile Store | Bridge Road KT9 2RT",
-  description:
-    "Dr Cloud Chessington — your local vape shop on Unit 4 Bridge Road, Chessington KT9 2RT. E-liquids, pod systems, mods, coils & accessories with same-day Click & Collect. 18+ only.",
-  openGraph: {
-    title: "Dr Cloud Chessington — Vape Shop & Mobile Store",
-    description:
-      "Local vape shop & mobile repair store in Chessington. E-liquids, pods, mods & same-day Click & Collect at Unit 4 Bridge Road, KT9 2RT.",
-    type: "website",
-  },
+  title: `${BRAND.fullName} — ${BRAND.tagline}`,
+  description: `Local vape & mobile repair shop, ${BRAND.address.line1}, ${BRAND.address.city}. Same-day Click & Collect, phone repairs while you wait. 18+ only.`,
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-zinc-950 text-zinc-100 antialiased">
+      <body className="min-h-screen flex flex-col bg-zinc-950 text-zinc-100">
         <StoreProvider>
-          <NicotineBanner />
-          <Header />
-          <AgeGate />
-          <CartDrawer />
-          <main className="min-h-[70vh]">{children}</main>
-          <div className="border-t border-amber-400/30 bg-amber-400/10 px-4 py-2 text-center text-[11px] font-medium text-amber-200">
-            WARNING: Nicotine is addictive. Vaping products are intended for adult smokers only (18+). Keep away from children & pets.
-          </div>
-          <Footer />
+          <Chrome>{children}</Chrome>
         </StoreProvider>
       </body>
     </html>

@@ -1,41 +1,32 @@
-import { NextResponse } from "next/server";
-import { db } from "@/db";
-import { users } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { hashPassword, signSession, setSessionCookie, getSession } from "@/lib/auth";
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { db } from '@/db';
+import { users } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { hashPassword, isOfAge } from '@/lib/auth';
+import { getSession } from '@/lib/session';
+
+const schema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+  fullName: z.string().min(1).max(100),
+  dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
 
 export async function POST(req: Request) {
-  try {
-    const body = await req.json();
-    const { email, password, fullName, dob } = body;
-    if (!email || !password) return NextResponse.json({ error: "Email and password required" }, { status: 400 });
-    if (password.length < 8) return NextResponse.json({ error: "Password must be 8+ characters" }, { status: 400 });
-    const existing = await db.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
-    if (existing.length) return NextResponse.json({ error: "Email already registered" }, { status: 409 });
-    const passwordHash = await hashPassword(password);
-    const role = email.toLowerCase() === (process.env.ADMIN_EMAIL || "admin@vapeshop.co.uk").toLowerCase() ? "ADMIN" : "CUSTOMER";
-    const inserted = await db.insert(users).values({
-      email: email.toLowerCase(),
-      passwordHash,
-      fullName: fullName || null,
-      dob: dob || null,
-      role: role as "ADMIN" | "CUSTOMER",
-    }).returning({ id: users.id, email: users.email, role: users.role, fullName: users.fullName });
-    const user = inserted[0];
-    const token = await signSession({ sub: user.id, email: user.email, role: user.role as "ADMIN" | "CUSTOMER" });
-    await setSessionCookie(token);
-    return NextResponse.json({ user });
-  } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: "Registration failed" }, { status: 500 });
-  }
-}
-
-export async function GET() {
+  const body = await req.json().catch(() => ({}));
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: 'Invalid input', issues: parsed.error.flatten() }, { status: 400 });
+  const { email, password, fullName, dob } = parsed.data;
+  if (!isOfAge(dob)) return NextResponse.json({ error: 'You must be 18 or over to register.' }, { status: 403 });
+  const existing = await db.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
+  if (existing[0]) return NextResponse.json({ error: 'Email already registered.' }, { status: 409 });
+  const [u] = await db
+    .insert(users)
+    .values({ email: email.toLowerCase(), passwordHash: await hashPassword(password), fullName, dob, role: 'CUSTOMER' })
+    .returning({ id: users.id, email: users.email, role: users.role, fullName: users.fullName });
   const s = await getSession();
-  if (!s) return NextResponse.json({ user: null });
-  const rows = await db.select().from(users).where(eq(users.id, s.sub)).limit(1);
-  if (!rows.length) return NextResponse.json({ user: null });
-  const u = rows[0];
-  return NextResponse.json({ user: { id: u.id, email: u.email, role: u.role, fullName: u.fullName, dob: u.dob } });
+  s.user = { id: u.id, email: u.email, role: u.role as 'CUSTOMER' | 'ADMIN', fullName: u.fullName ?? undefined };
+  await s.save();
+  return NextResponse.json({ user: s.user });
 }

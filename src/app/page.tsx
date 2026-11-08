@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { gbp } from "@/lib/format";
 import { useStore } from "@/lib/store";
 import { BRAND, fullAddress } from "@/lib/brand";
+import { PlaceholderImage } from "@/components/placeholder-image";
 
 type P = {
   id: string; name: string; brand: string; basePrice: string; images: string[];
@@ -15,16 +16,16 @@ type P = {
 export default function Home() {
   const [products, setProducts] = useState<P[]>([]);
   const [seeding, setSeeding] = useState(false);
-  const { addToCart } = useStore();
+  const { addToCart, setCartOpen } = useStore();
 
   const load = async () => {
-    const r = await fetch("/api/products");
+    const r = await fetch("/api/products", { cache: "no-store" });
     const j = await r.json();
     setProducts(j.products || []);
   };
   useEffect(() => {
     load().then(async () => {
-      const r = await fetch("/api/products").then((x) => x.json()).catch(() => null);
+      const r = await fetch("/api/products", { cache: "no-store" }).then((x) => x.json()).catch(() => null);
       if (r && (r.products || []).length === 0) {
         setSeeding(true);
         await fetch("/api/seed", { method: "POST" }).catch(() => {});
@@ -41,13 +42,14 @@ export default function Home() {
       {/* HERO */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-teal-950 via-zinc-950 to-emerald-950" />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/images/chessington-shop.jpg" alt="" className="absolute inset-0 h-full w-full object-cover opacity-20" />
+        <PlaceholderImage src="/images/chessington-shop.svg" alt="" className="absolute inset-0 h-full w-full object-cover opacity-20" />
         <div className="absolute -left-20 top-10 h-72 w-72 rounded-full bg-teal-500/25 blur-3xl" />
         <div className="absolute -right-20 bottom-0 h-72 w-72 rounded-full bg-emerald-500/20 blur-3xl" />
         <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-14 md:grid-cols-2 md:py-20">
           <div>
-            <p className="inline-flex items-center gap-2 rounded-full border border-teal-400/40 bg-teal-400/10 px-3 py-1 text-xs font-bold text-teal-200">📍 {fullAddress} · <a href={BRAND.phoneHref} className="underline">{BRAND.phone}</a></p>
+            <p className="inline-flex items-center gap-2 rounded-full border border-teal-400/40 bg-teal-400/10 px-3 py-1 text-xs font-bold text-teal-200">
+              📍 {fullAddress} · <a href={BRAND.phoneHref} className="underline">{BRAND.phone}</a>
+            </p>
             <h1 className="mt-4 text-4xl font-black leading-[1.05] text-white md:text-6xl">
               Dr Cloud<br />Chessington<br />
               <span className="bg-gradient-to-r from-teal-300 to-emerald-300 bg-clip-text text-transparent">Vape & Mobile Store.</span>
@@ -71,9 +73,12 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             {featured.map((p) => (
-              <div key={p.id} className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/80">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                {p.images?.[0] && <img src={p.images[0]} alt={p.name} className="h-36 w-full object-cover md:h-44" />}
+              <div key={p.id} className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/80 hover:border-teal-400/40 transition">
+                {p.images?.[0] ? (
+                  <PlaceholderImage src={p.images[0]} alt={p.name} className="h-36 w-full object-cover md:h-44" />
+                ) : (
+                  <div className="h-36 w-full md:h-44 bg-gradient-to-br from-teal-900/50 to-zinc-900 grid place-items-center text-4xl">☁️</div>
+                )}
                 <div className="p-3">
                   <p className="text-[11px] font-bold uppercase tracking-wide text-teal-300">{p.brand}</p>
                   <Link href={`/product/${p.id}`} className="line-clamp-1 text-sm font-bold text-white hover:underline">{p.name}</Link>
@@ -85,6 +90,9 @@ export default function Home() {
               </div>
             ))}
             {seeding && <p className="col-span-2 text-center text-sm text-zinc-400">Seeding demo catalogue…</p>}
+            {!seeding && featured.length === 0 && (
+              <p className="col-span-2 text-center text-sm text-zinc-400 py-8">Loading catalogue…</p>
+            )}
           </div>
         </div>
       </section>
@@ -92,8 +100,7 @@ export default function Home() {
       {/* VISIT STRIP */}
       <section className="border-y border-white/10 bg-zinc-900/60">
         <div className="mx-auto flex max-w-7xl flex-col items-start gap-3 px-4 py-4 sm:flex-row sm:items-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/dr-cloud-logo.png" alt="Dr Cloud" className="h-12 w-12 rounded-xl object-cover" />
+          <PlaceholderImage src="/images/dr-cloud-logo.svg" alt="Dr Cloud" className="h-12 w-12 rounded-xl object-cover" />
           <div className="text-sm">
             <p className="font-extrabold text-white">Pop in — {BRAND.fullName}, {fullAddress}</p>
             <p className="text-xs text-zinc-400">Click & Collect ready same day · Call <a className="font-bold text-teal-300" href={BRAND.phoneHref}>{BRAND.phone}</a> for stock & repair quotes · <a className="underline" href={BRAND.mapsUrl} target="_blank" rel="noreferrer">Get directions</a></p>
@@ -117,7 +124,7 @@ export default function Home() {
             { slug: "coils-tanks", emoji: "🌀", blurb: "Coils & tanks" },
             { slug: "accessories", emoji: "🎒", blurb: "Gear & extras" },
           ].map((c) => (
-            <Link key={c.slug} href={`/shop?category=${c.slug}`} className="rounded-2xl border border-white/10 bg-zinc-900 p-5 hover:border-teal-400/60 hover:bg-zinc-800">
+            <Link key={c.slug} href={`/shop?category=${c.slug}`} className="rounded-2xl border border-white/10 bg-zinc-900 p-5 hover:border-teal-400/60 hover:bg-zinc-800 transition">
               <div className="text-3xl">{c.emoji}</div>
               <p className="mt-2 text-sm font-extrabold text-white capitalize">{c.slug.replace("-", " ")}</p>
               <p className="text-xs text-zinc-400">{c.blurb}</p>
@@ -134,10 +141,13 @@ export default function Home() {
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
           {products.slice(0, 8).map((p) => (
-            <div key={p.id} className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-900">
+            <div key={p.id} className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 hover:border-teal-400/40 transition">
               <Link href={`/product/${p.id}`}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                {p.images?.[0] ? <img src={p.images[0]} alt={p.name} className="h-44 w-full object-cover" /> : <div className="h-44 bg-zinc-800" />}
+                {p.images?.[0] ? (
+                  <PlaceholderImage src={p.images[0]} alt={p.name} className="h-44 w-full object-cover" />
+                ) : (
+                  <div className="h-44 bg-gradient-to-br from-teal-900/40 to-zinc-800 grid place-items-center text-5xl">☁️</div>
+                )}
               </Link>
               <div className="p-3">
                 <p className="text-[11px] font-bold uppercase text-teal-300">{p.brand} · {p.flavorProfile}</p>
@@ -147,9 +157,17 @@ export default function Home() {
                   <span className="font-extrabold text-white">from {gbp(p.minPrice)}</span>
                   <button
                     onClick={() => {
-                      const v = [...p.variants].sort((a, b) => a.stockQuantity - b.stockQuantity).pop() || p.variants[0];
+                      // Pick the variant with the most stock as default "quick add"
+                      const v = [...p.variants].sort((a, b) => b.stockQuantity - a.stockQuantity)[0];
                       if (!v) return;
-                      addToCart({ variantId: v.id, productId: p.id, name: p.name, brand: p.brand, image: p.images?.[0], variantLabel: [v.flavor, v.nicotineStrength, v.bottleSize, v.color].filter(Boolean).join(" · "), sku: v.sku, unitPrice: parseFloat(v.priceOverride || p.basePrice), stock: v.stockQuantity });
+                      addToCart({
+                        variantId: v.id, productId: p.id, name: p.name, brand: p.brand,
+                        image: p.images?.[0],
+                        variantLabel: [v.flavor, v.nicotineStrength, v.bottleSize, v.color].filter(Boolean).join(" · "),
+                        sku: v.sku,
+                        unitPrice: parseFloat(v.priceOverride || p.basePrice),
+                        stock: v.stockQuantity,
+                      });
                     }}
                     className="rounded-lg bg-teal-500 px-3 py-1.5 text-xs font-extrabold text-black hover:bg-teal-400"
                   >+ Quick add</button>

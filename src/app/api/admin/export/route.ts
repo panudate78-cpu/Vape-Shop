@@ -1,26 +1,26 @@
-import { NextResponse } from "next/server";
-import { db } from "@/db";
-import { productVariants, products } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { getSession } from "@/lib/auth";
-
-export const dynamic = "force-dynamic";
+import { NextResponse } from 'next/server';
+import { db } from '@/db';
+import { productVariants, products } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { requireAdmin } from '@/lib/session';
 
 export async function GET() {
-  const s = await getSession();
-  if (!s || s.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const prods = await db.select().from(products);
-  const vars = await db.select().from(productVariants);
-  const pmap = Object.fromEntries(prods.map((p) => [p.id, p]));
-  const header = "product_name,brand,sku,flavor,nicotine_strength,bottle_size,color,price,stock,low_stock_threshold,is_active";
-  const lines = vars.map((v) => {
-    const p = pmap[v.productId];
-    const price = v.priceOverride ?? p?.basePrice ?? "0";
-    const esc = (x: unknown) => `"${String(x ?? "").replace(/"/g, '""')}"`;
-    return [esc(p?.name), esc(p?.brand), esc(v.sku), esc(v.flavor), esc(v.nicotineStrength), esc(v.bottleSize), esc(v.color), esc(price), v.stockQuantity, v.lowStockThreshold, v.isActive].join(",");
+  const a = await requireAdmin();
+  if (!a) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const rows = await db.select({
+      sku: productVariants.sku, product: products.name, brand: products.brand,
+      flavor: productVariants.flavor, nicotine: productVariants.nicotineStrength,
+      size: productVariants.bottleSize, stock: productVariants.stockQuantity,
+      price: productVariants.priceOverride, basePrice: products.basePrice,
+    })
+    .from(productVariants).leftJoin(products, eq(products.id, productVariants.productId));
+  const header = 'sku,brand,product,flavor,nicotine,size,stock,price';
+  const body = rows.map((r) => [r.sku, r.brand, r.product, r.flavor, r.nicotine, r.size, r.stock, r.price ?? r.basePrice].map(csv).join(',')).join('\n');
+  return new NextResponse(header + '\n' + body, {
+    headers: { 'content-type': 'text/csv', 'content-disposition': 'attachment; filename="inventory.csv"' },
   });
-  const csv = [header, ...lines].join("\n");
-  return new NextResponse(csv, {
-    headers: { "Content-Type": "text/csv", "Content-Disposition": "attachment; filename=inventory.csv" },
-  });
+}
+function csv(v: any) {
+  const s = String(v ?? '');
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }

@@ -1,37 +1,26 @@
-import { NextResponse } from "next/server";
-import { db } from "@/db";
-import { orders, orderItems } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
-import { getSession } from "@/lib/auth";
+import { NextResponse } from 'next/server';
+import { db } from '@/db';
+import { orders, orderItems } from '@/db/schema';
+import { eq, desc } from 'drizzle-orm';
+import { getSession } from '@/lib/session';
 
-export const dynamic = "force-dynamic";
-
-export async function GET(req: Request) {
+export async function GET() {
   const s = await getSession();
-  const url = new URL(req.url);
-  // Admin: list all with optional status filter
-  if (s?.role === "ADMIN") {
-    const status = url.searchParams.get("status");
-    const rows = await db.select().from(orders).orderBy(desc(orders.createdAt)).limit(200);
-    const filtered = status ? rows.filter((o) => o.status === status) : rows;
-    return NextResponse.json({ orders: filtered, isAdmin: true });
-  }
-  // Customer: own orders; guests can pass ?email=
-  if (s) {
-    const rows = await db.select().from(orders).where(eq(orders.userId, s.sub)).orderBy(desc(orders.createdAt)).limit(100);
-    const withItems = await Promise.all(rows.map(async (o) => {
-      const items = await db.select().from(orderItems).where(eq(orderItems.orderId, o.id));
-      return { ...o, items };
-    }));
-    return NextResponse.json({ orders: withItems });
-  }
-  const email = url.searchParams.get("email");
-  if (!email) return NextResponse.json({ orders: [], guest: true });
-  const { ilike } = await import("drizzle-orm");
-  const rows = await db.select().from(orders).where(ilike(orders.guestEmail, email)).orderBy(desc(orders.createdAt)).limit(50);
-  const withItems = await Promise.all(rows.map(async (o) => {
-    const items = await db.select().from(orderItems).where(eq(orderItems.orderId, o.id));
-    return { ...o, items };
-  }));
-  return NextResponse.json({ orders: withItems, guest: true });
+  if (!s.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const rows = await db.select().from(orders).where(eq(orders.userId, s.user.id)).orderBy(desc(orders.createdAt));
+  return NextResponse.json(rows);
+}
+
+export async function POST(req: Request) {
+  // helper: guest lookup by order id + email
+  const body = await req.json().catch(() => ({}));
+  const id = Number(body.id);
+  const email = String(body.email || '').toLowerCase();
+  const [o] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
+  if (!o) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const match = (o.userId && o.userId > 0 && (await getSession()).user?.id === o.userId)
+    || (o.guestEmail && o.guestEmail.toLowerCase() === email);
+  if (!match) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const items = await db.select().from(orderItems).where(eq(orderItems.orderId, o.id));
+  return NextResponse.json({ order: o, items });
 }
