@@ -13,7 +13,9 @@ export default function LoginPage() {
     const d = await r.json();
     setLoading(false);
     if (!r.ok) { setErr(d.error || 'Login failed'); return; }
-    router.push('/account'); router.refresh();
+    // Admins go straight to the dashboard; customers go to their account.
+    const dest = d.user?.role === 'ADMIN' ? '/admin' : '/account';
+    router.push(dest); router.refresh();
   };
   return (
     <div className="max-w-md mx-auto card mt-8">
