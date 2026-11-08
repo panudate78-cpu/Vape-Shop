@@ -1,31 +1,24 @@
 import { classNames as clsx } from '@/lib/format';
 
 type Props = {
-  /** Height in px. Width is determined by the logo's natural aspect ratio. */
+  /** Height in px. Width is automatic based on the logo's aspect ratio (~3:1). */
   height?: number;
   className?: string;
   /**
-   * Render the logo 'naked' (no white card, no rounding) so its black
-   * background blends into the surrounding dark surface. Use onDark only
-   * when the immediate background is pure black (#000) — otherwise the
-   * PNG's black edges will show as a visible dark square. When in doubt,
-   * leave onDark=false (default) which renders the logo on a white card
-   * that works on any background.
+   * Render the logo 'naked' (no card, no padding) so its black background
+   * blends invisibly into a pure-black parent (e.g. the main header or
+   * footer). Leave false (default) when placing on non-black surfaces
+   * like teal strips or light cards.
    */
   onDark?: boolean;
 };
 
 /**
- * Dr Cloud brand logo — white cloud with "DR CLOUD" knocked out inside it
- * and "THE MOBILE & VAPE STORE" below, on a black square (PNG).
- *
- * Two display modes:
- *  - onDark=false (default): logo sits on a white rounded card — clean
- *    on teal strips, footers, and any non-black surface.
- *  - onDark=true: logo is rendered raw (no card) — its black background
- *    blends invisibly into a pure-black parent such as the main header.
+ * Dr Cloud brand logo — white cloud on black with "DR CLOUD" knocked out
+ * inside and "THE MOBILE & VAPE STORE" in white underneath. Source PNG is
+ * 373x122 (~3:1 landscape).
  */
-export function Logo({ height = 48, className, onDark = false }: Props) {
+export function Logo({ height = 44, className, onDark = false }: Props) {
   if (onDark) {
     return (
       <div className={clsx('flex items-center justify-center', className)}>
@@ -38,11 +31,13 @@ export function Logo({ height = 48, className, onDark = false }: Props) {
       </div>
     );
   }
+  // Card version: white rounded backing so the logo reads on teal/light.
+  const pad = Math.max(2, Math.round(height * 0.08));
   return (
     <div className={clsx('flex items-center justify-center', className)}>
       <span
-        className="inline-flex items-center justify-center rounded-2xl bg-white p-1 shadow-md"
-        style={{ height, padding: Math.round(height * 0.06) }}
+        className="inline-flex items-center justify-center rounded-xl bg-white shadow-md"
+        style={{ height: height + pad * 2, padding: pad }}
         aria-label="Dr Cloud"
         role="img"
       >
@@ -50,7 +45,7 @@ export function Logo({ height = 48, className, onDark = false }: Props) {
         <img
           src="/images/dr-cloud-logo.png"
           alt="Dr Cloud"
-          style={{ height: height - Math.round(height * 0.12), width: 'auto', display: 'block' }}
+          style={{ height, width: 'auto', display: 'block' }}
         />
       </span>
     </div>
