@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { productVariants, products, categories } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { getSession } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 
 function parseCsv(text: string): Record<string, string>[] {
   const lines = text.trim().split(/\r?\n/);
@@ -31,8 +31,8 @@ function parseCsv(text: string): Record<string, string>[] {
 }
 
 export async function POST(req: Request) {
-  const s = await getSession();
-  if (!s || s.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const s = await requireAdmin();
+  if (!s) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   try {
     const text = await req.text();
     const rows = parseCsv(text);

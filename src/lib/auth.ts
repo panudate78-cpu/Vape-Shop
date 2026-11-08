@@ -20,3 +20,7 @@ export function ageFromDob(dob: string) {
 export function isOfAge(dob: string, threshold = Number(process.env.NEXT_PUBLIC_AGE_THRESHOLD || 18)) {
   return ageFromDob(dob) >= threshold;
 }
+
+// Re-export session helpers so older imports (from @/lib/auth) keep working.
+export { getSession, requireUser, requireAdmin } from './session';
+export type { SessionUser, SessionData, CartLine } from './session';

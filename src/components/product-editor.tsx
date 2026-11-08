@@ -24,7 +24,7 @@ export default function ProductEditor({ mode, productId }: { mode: "create" | "e
   const [mStock, setMStock] = useState("50");
 
   useEffect(() => {
-    fetch("/api/categories").then((r) => r.json()).then((j) => setCats(j.categories || []));
+    fetch("/api/categories").then((r) => r.json()).then((j) => setCats(Array.isArray(j) ? j : (j.categories || [])));
     if (mode === "edit" && productId) {
       fetch(`/api/products/${productId}`).then((r) => r.json()).then((j) => {
         const p = j.product;

@@ -1,5 +1,9 @@
 'use client';
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, useCallback, type ReactNode } from 'react';
+
+export type User = {
+  id: number; email: string; role: 'CUSTOMER' | 'ADMIN' | string; fullName?: string;
+};
 
 export type CartLine = {
   lineId: string;
@@ -25,18 +29,37 @@ type Store = {
   clearCart: () => void;
   cartCount: number;
   cartSubtotal: number;
+  // Session / user (used by admin layout & account pages)
+  user: User | null;
+  setUser: (u: User | null) => void;
+  refreshUser: () => Promise<User | null>;
+  logout: () => Promise<void>;
 };
 
 const StoreCtx = createContext<Store | null>(null);
 const STORAGE_KEY = 'drcloud_cart_v1';
-const CART_OPEN_KEY = 'drcloud_cart_open';
 
 export function StoreProvider({ children, initialCart }: { children: ReactNode; initialCart?: CartLine[] }) {
   const [cart, setCart] = useState<CartLine[]>(initialCart || []);
   const [cartOpen, setCartOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
-  // Load from localStorage on mount
+  const refreshUser = useCallback(async (): Promise<User | null> => {
+    try {
+      const r = await fetch('/api/auth/me', { cache: 'no-store' });
+      if (!r.ok) { setUser(null); return null; }
+      const d = await r.json();
+      setUser(d.user || null);
+      return d.user || null;
+    } catch { setUser(null); return null; }
+  }, []);
+
+  const logout = useCallback(async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    setUser(null);
+  }, []);
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -46,17 +69,16 @@ export function StoreProvider({ children, initialCart }: { children: ReactNode; 
       }
     } catch {}
     setHydrated(true);
-  }, []);
+    refreshUser();
+  }, [refreshUser]);
 
-  // Persist to localStorage
   useEffect(() => {
     if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
   }, [cart, hydrated]);
 
-  // Sync cart with server session (best effort — POST the cart so server-rendered pages stay in sync)
   useEffect(() => {
     if (!hydrated) return;
-    const payload = cart.map((l) => ({ variantId: Number(l.variantId), quantity: l.quantity }));
+    const payload = cart.map((l) => ({ variantId: Number(l.variantId), quantity: l.quantity })).filter((l) => !isNaN(l.variantId));
     fetch('/api/cart', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lines: payload }) }).catch(() => {});
   }, [cart, hydrated]);
 
@@ -74,13 +96,17 @@ export function StoreProvider({ children, initialCart }: { children: ReactNode; 
   };
 
   const removeFromCart = (lineId: string) => setCart((p) => p.filter((l) => l.lineId !== lineId));
-  const setQuantity = (lineId: string, qty: number) => setCart((p) => p.map((l) => (l.lineId === lineId ? { ...l, quantity: Math.max(1, Math.min(l.stock, qty)) } : l)));
+  const setQuantity = (lineId: string, qty: number) =>
+    setCart((p) => p.map((l) => (l.lineId === lineId ? { ...l, quantity: Math.max(1, Math.min(l.stock, qty)) } : l)));
   const clearCart = () => setCart([]);
 
   const cartCount = useMemo(() => cart.reduce((s, l) => s + l.quantity, 0), [cart]);
   const cartSubtotal = useMemo(() => cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0), [cart]);
 
-  const value: Store = { cart, cartOpen, setCartOpen, addToCart, removeFromCart, setQuantity, clearCart, cartCount, cartSubtotal };
+  const value: Store = {
+    cart, cartOpen, setCartOpen, addToCart, removeFromCart, setQuantity, clearCart,
+    cartCount, cartSubtotal, user, setUser, refreshUser, logout,
+  };
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;
 }
 
