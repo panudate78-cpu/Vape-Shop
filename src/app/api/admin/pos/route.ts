@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { orders, orderItems, productVariants, products, payments } from "@/db/schema";
+import { orders, orderItems, productVariants, products, categories, payments } from "@/db/schema";
 import { eq, inArray, sql } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth";
 import { z } from "zod";
@@ -41,6 +41,7 @@ export async function GET() {
     sku: productVariants.sku,
     productName: products.name,
     brand: products.brand,
+    categoryName: categories.name,
     flavor: productVariants.flavor,
     nicotine: productVariants.nicotineStrength,
     size: productVariants.bottleSize,
@@ -54,6 +55,7 @@ export async function GET() {
   })
   .from(productVariants)
   .leftJoin(products, eq(products.id, productVariants.productId))
+  .leftJoin(categories, eq(categories.id, products.categoryId))
   .orderBy(products.name);
 
   return NextResponse.json({
@@ -67,7 +69,8 @@ export async function GET() {
           productId: r.productId,
           sku: r.sku,
           name: r.productName,
-          brand: r.brand,
+          brand: r.brand || 'Other',
+          category: r.categoryName || 'Other',
           variantLabel,
           image: Array.isArray(r.images) ? r.images[0] : null,
           stock: r.stock,
