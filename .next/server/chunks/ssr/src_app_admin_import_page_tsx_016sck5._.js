@@ -1,0 +1,16 @@
+module.exports=[76455,a=>{"use strict";var b=a.i(87924),c=a.i(72131);a.s(["default",0,function(){let[a,d]=(0,c.useState)('product_name,brand,sku,flavor,nicotine_strength,bottle_size,color,price,stock,low_stock_threshold,is_active\n"Arctic Mango Ice 50ml Shortfill",Frostline,FRST-MAN-TEST,"Mango Ice",3mg,50ml,,15.99,100,10,true'),[e,f]=(0,c.useState)(""),[g,h]=(0,c.useState)(null),i=async a=>{f("Importing…");let b=await fetch("/api/admin/import",{method:"POST",headers:{"Content-Type":"text/csv"},body:a}),c=await b.json();f(b.ok?`✓ Imported: ${c.updated} updated, ${c.created} created (of ${c.total})`:`✗ ${c.error}`)};return(0,b.jsxs)("div",{className:"grid gap-6 lg:grid-cols-2",children:[(0,b.jsxs)("div",{className:"rounded-2xl border border-white/10 bg-zinc-900 p-5",children:[(0,b.jsx)("h2",{className:"font-extrabold text-white",children:"Bulk CSV import"}),(0,b.jsxs)("p",{className:"mt-1 text-xs text-zinc-400",children:["Match SKU → update stock/price. New product_name → create product + variant. Header must be:",(0,b.jsx)("br",{}),(0,b.jsx)("span",{className:"font-mono text-[11px] text-violet-300",children:"product_name,brand,sku,flavor,nicotine_strength,bottle_size,color,price,stock,low_stock_threshold,is_active"})]}),(0,b.jsx)("input",{type:"file",accept:".csv",onChange:a=>h(a.target.files?.[0]||null),className:"mt-3 w-full text-xs text-zinc-300"}),g&&(0,b.jsxs)("button",{onClick:()=>g.text().then(i),className:"mt-2 w-full rounded-xl bg-amber-400 py-2.5 text-xs font-black text-black",children:["Upload ",g.name]}),(0,b.jsx)("p",{className:"mt-3 text-xs font-bold text-zinc-300",children:"Or paste CSV:"}),(0,b.jsx)("textarea",{value:a,onChange:a=>d(a.target.value),rows:10,className:"mt-1 w-full rounded-xl border border-white/10 bg-zinc-950 p-3 font-mono text-[11px] outline-none"}),(0,b.jsx)("button",{onClick:()=>i(a),className:"mt-2 w-full rounded-xl border border-amber-400/50 py-2.5 text-xs font-black text-amber-300",children:"Import pasted CSV"}),e&&(0,b.jsx)("p",{className:"mt-2 text-xs font-bold text-white",children:e})]}),(0,b.jsxs)("div",{className:"rounded-2xl border border-white/10 bg-zinc-900 p-5",children:[(0,b.jsx)("h2",{className:"font-extrabold text-white",children:"Export"}),(0,b.jsx)("p",{className:"mt-1 text-xs text-zinc-400",children:"Download the full variant inventory as CSV for spreadsheets / stock counts."}),(0,b.jsx)("a",{href:"/api/admin/export",className:"mt-3 block rounded-xl bg-white py-2.5 text-center text-xs font-black text-black",children:"⬇ Download inventory.csv"}),(0,b.jsxs)("div",{className:"mt-5 rounded-xl bg-black/30 p-4 text-[11px] leading-relaxed text-zinc-400",children:[(0,b.jsx)("p",{className:"font-bold text-white",children:"Payment gateway env reference"}),(0,b.jsx)("pre",{className:"mt-2 whitespace-pre-wrap font-mono text-[11px] text-violet-200",children:`PAYMENT_GATEWAY=mock
+# authorize_net | nmi | square | viva
+PAYMENT_MODE=sandbox
+MOCK_WEBHOOK_SECRET=wh_mock_secret
+AUTHORIZENET_API_LOGIN_ID=
+AUTHORIZENET_TRANSACTION_KEY=
+NMI_SECURITY_KEY=
+SQUARE_ACCESS_TOKEN=
+SQUARE_LOCATION_ID=
+VIVA_MERCHANT_ID=
+VIVA_API_KEY=
+ADMIN_EMAIL=admin@vapeshop.co.uk
+ADMIN_PASSWORD=Admin123!
+NEXT_PUBLIC_AGE_THRESHOLD=18`})]})]})]})}])}];
+
+//# sourceMappingURL=src_app_admin_import_page_tsx_016sck5._.js.map
