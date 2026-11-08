@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { LogoutButton } from './logout-button';
 
@@ -10,12 +10,10 @@ export function StoreNavUser({ user }: { user?: User }) {
   if (user) {
     return (
       <div className="flex items-center gap-2 text-sm">
-        {/* Desktop: full name + logout */}
         <div className="hidden sm:flex items-center gap-2">
           <Link href="/account" className="hover:text-teal-300">{user.fullName || user.email}</Link>
           <LogoutButton />
         </div>
-        {/* Mobile: just an 👤 account icon link */}
         <Link
           href="/account"
           className="sm:hidden rounded-lg border border-white/20 w-9 h-9 flex items-center justify-center text-white hover:bg-white/10"
@@ -29,12 +27,10 @@ export function StoreNavUser({ user }: { user?: User }) {
   }
   return (
     <div className="flex items-center gap-2 text-sm">
-      {/* Desktop: Login link + Sign up button */}
       <div className="hidden sm:flex items-center gap-2">
         <Link href="/login" className="hover:text-teal-300">Login</Link>
         <Link href="/register" className="rounded-xl bg-teal-500 px-3 py-1.5 text-sm font-extrabold text-black hover:bg-teal-400">Sign up</Link>
       </div>
-      {/* Mobile: single compact Login button (Sign up is on the login page too) */}
       <Link
         href="/login"
         className="sm:hidden rounded-lg bg-teal-500 px-3 py-1.5 text-xs font-extrabold text-black hover:bg-teal-400"
@@ -45,29 +41,50 @@ export function StoreNavUser({ user }: { user?: User }) {
   );
 }
 
-/** Mobile hamburger menu with Shop/Visit/Track links (the desktop nav is hidden < md). */
+/**
+ * Mobile hamburger menu. Rendered fixed so it always sits on top of page content
+ * with a fully opaque panel + dim backdrop — no text bleeding through.
+ */
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
+
+  // Lock body scroll while the menu is open
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
+
   return (
     <>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="md:hidden ml-1 rounded-lg border border-white/20 w-9 h-9 flex items-center justify-center text-white hover:bg-white/10"
-        aria-label="Menu"
+        className="md:hidden ml-1 rounded-lg border border-white/20 w-9 h-9 flex items-center justify-center text-white hover:bg-white/10 shrink-0"
+        aria-label={open ? 'Close menu' : 'Open menu'}
         aria-expanded={open}
       >
         {open ? '✕' : '☰'}
       </button>
       {open && (
-        <div className="md:hidden absolute top-full left-0 right-0 bg-black/98 border-b border-white/10 backdrop-blur">
-          <nav className="flex flex-col px-4 py-3 text-base">
-            <Link href="/shop" onClick={close} className="py-3 border-b border-white/10 hover:text-teal-300">Shop</Link>
-            <Link href="/visit" onClick={close} className="py-3 border-b border-white/10 hover:text-teal-300">Visit</Link>
-            <Link href="/track" onClick={close} className="py-3 border-b border-white/10 hover:text-teal-300">Track my order</Link>
-            <Link href="/login" onClick={close} className="py-3 hover:text-teal-300">Login / Sign up</Link>
-          </nav>
-        </div>
+        <>
+          {/* Dim backdrop — clicks outside close the menu */}
+          <div
+            className="md:hidden fixed inset-0 bg-black/70 z-[60]"
+            onClick={close}
+            aria-hidden
+          />
+          {/* Opaque menu panel — anchored just under the sticky header */}
+          <div className="md:hidden fixed inset-x-0 top-[112px] z-[70] bg-black border-b border-white/10 shadow-2xl">
+            <nav className="flex flex-col px-4">
+              <Link href="/shop" onClick={close} className="py-4 text-lg border-b border-white/10 text-white hover:text-teal-300">Shop</Link>
+              <Link href="/visit" onClick={close} className="py-4 text-lg border-b border-white/10 text-white hover:text-teal-300">Visit</Link>
+              <Link href="/track" onClick={close} className="py-4 text-lg border-b border-white/10 text-white hover:text-teal-300">Track my order</Link>
+              <Link href="/login" onClick={close} className="py-4 text-lg text-white hover:text-teal-300">Login / Sign up</Link>
+            </nav>
+          </div>
+        </>
       )}
     </>
   );

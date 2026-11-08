@@ -18,7 +18,7 @@ export async function Chrome({ children }: { children: React.ReactNode }) {
       <div className="bg-amber-500 text-zinc-950 text-center text-xs md:text-sm font-semibold py-1 px-3">
         ⚠️ This product contains nicotine. Nicotine is an addictive chemical. Adults 18+ only.
       </div>
-      <header className="sticky top-0 z-30 bg-black/95 backdrop-blur border-b border-white/10">
+      <header className="sticky top-0 z-50 bg-black border-b border-white/10">
         <div className="bg-teal-500 text-zinc-950 text-xs md:text-sm text-center py-1 font-semibold">
           {fullAddress} · Same-day Click & Collect · Call <a href={BRAND.phoneHref} className="underline">{BRAND.phone}</a>
         </div>
