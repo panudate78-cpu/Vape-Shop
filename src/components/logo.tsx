@@ -1,37 +1,48 @@
 import { classNames as clsx } from '@/lib/format';
 
 type Props = {
-  /** Visual height of the logo card in px. Width scales to match the logo's
-   *  natural aspect ratio (the Dr Cloud cloud is near-square). */
+  /** Height in px. Width is determined by the logo's natural aspect ratio. */
   height?: number;
   className?: string;
-  /** Optional "glow" accent (teal halo) used on dark hero sections. */
-  glow?: boolean;
+  /**
+   * Render the logo 'naked' (no white card, no rounding) so its black
+   * background blends into the surrounding dark surface. Use onDark only
+   * when the immediate background is pure black (#000) — otherwise the
+   * PNG's black edges will show as a visible dark square. When in doubt,
+   * leave onDark=false (default) which renders the logo on a white card
+   * that works on any background.
+   */
+  onDark?: boolean;
 };
 
 /**
- * Dr Cloud brand logo.
+ * Dr Cloud brand logo — white cloud with "DR CLOUD" knocked out inside it
+ * and "THE MOBILE & VAPE STORE" below, on a black square (PNG).
  *
- * Source: /public/images/dr-cloud-logo.png — the clean black-and-white
- * cloud mark with "DR CLOUD / THE MOBILE & VAPE STORE" inside, designed
- * for use on dark backgrounds.
- *
- * The logo is rendered on a white rounded-square card so the white cloud
- * reads against dark UI, and uses object-contain to preserve the full
- * cloud shape (no cropping).
+ * Two display modes:
+ *  - onDark=false (default): logo sits on a white rounded card — clean
+ *    on teal strips, footers, and any non-black surface.
+ *  - onDark=true: logo is rendered raw (no card) — its black background
+ *    blends invisibly into a pure-black parent such as the main header.
  */
-export function Logo({ height = 48, className, glow = false }: Props) {
-  // The B&W logo is near-square (0.86 width/height). Add a touch of
-  // horizontal breathing room so the card looks natural.
-  const width = Math.round(height * 1.05);
+export function Logo({ height = 48, className, onDark = false }: Props) {
+  if (onDark) {
+    return (
+      <div className={clsx('flex items-center justify-center', className)}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/dr-cloud-logo.png"
+          alt="Dr Cloud"
+          style={{ height, width: 'auto', display: 'block' }}
+        />
+      </div>
+    );
+  }
   return (
     <div className={clsx('flex items-center justify-center', className)}>
       <span
-        className={clsx(
-          'inline-flex items-center justify-center rounded-2xl bg-white',
-          glow && 'shadow-[0_0_30px_rgba(20,184,166,0.35)]',
-        )}
-        style={{ width, height, padding: Math.max(2, Math.round(height * 0.06)) }}
+        className="inline-flex items-center justify-center rounded-2xl bg-white p-1 shadow-md"
+        style={{ height, padding: Math.round(height * 0.06) }}
         aria-label="Dr Cloud"
         role="img"
       >
@@ -39,9 +50,7 @@ export function Logo({ height = 48, className, glow = false }: Props) {
         <img
           src="/images/dr-cloud-logo.png"
           alt="Dr Cloud"
-          width={width}
-          height={height}
-          className="h-full w-full object-contain"
+          style={{ height: height - Math.round(height * 0.12), width: 'auto', display: 'block' }}
         />
       </span>
     </div>
