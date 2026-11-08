@@ -145,3 +145,46 @@ npm run dev
 ```
 
 The site will be live at http://localhost:3000.
+
+---
+
+## QuickBooks integration
+
+There are three ways to get Dr Cloud sales into QuickBooks, depending on how automated you want to be.
+
+### Option 1 — CSV export (built in, works today)
+
+From the admin dashboard click **📊 QuickBooks export** (or hit `/api/admin/quickbooks?from=YYYY-MM-DD&to=YYYY-MM-DD&source=online|pos|all`). You get a CSV in QuickBooks Online's **Sales Receipts** format with these columns: `Date, Customer, Email, Payment Method, Reference No., Deposit To, Memo, Product/Service, Description, Qty, Rate, Amount, Tax, Class`.
+
+- Each order line is a row; delivery fees and discounts appear as separate lines.
+- Reference numbers are `ORD-123` for online orders and `POS-123` for in-store sales.
+- Payment method is set to `Cash` / `Card` for POS sales, `Stripe` / `Cash on collection` / `Online` for web orders.
+- The `Class` column tags rows `Online` or `In-store` so you can run class-based P&L reports.
+
+Import into QBO: **Settings → Import data → Invoices / Sales receipts → Browse** → upload the CSV. Map the columns (QBO auto-matches most of them) and import.
+
+Optional env vars (add in Vercel) to control QBO mapping:
+- `QB_DEPOSIT_TO` (default `Sales`) — bank/current-asset account to deposit the receipt into (e.g. `Business Current Account`).
+- `QB_DEFAULT_ITEM` (default `Sales`) — Product/Service name used for product lines.
+- `QB_SHIPPING_ITEM` (default `Postage`) — Product/Service name for delivery lines.
+- `QB_DISCOUNT_ITEM` (default `Discounts`) — Product/Service name for discount lines (must be a "Discount" type in QBO if you want the totals to net correctly).
+
+### Option 2 — Zapier / Make (no code, ~15 min setup)
+
+Use Zapier's "Webhooks by Zapier" trigger plus the "QuickBooks Online" action:
+1. In Zapier, make a new Zap with trigger **Catch Hook** → copy the webhook URL.
+2. Set `ZAPIER_WEBHOOK_URL=https://hooks.zapier.com/...` in Vercel env.
+3. Add a Zapier step: **QuickBooks Online → Create Sales Receipt**, mapping order fields.
+4. Sales receipts will be created automatically ~1 min after every paid order.
+
+*(I can wire the webhook call in — say the word and I'll add it.)*
+
+### Option 3 — Native OAuth (real-time, two-way)
+
+Use QBO's OAuth 2.0 + QuickBooks Accounting API to push sales receipts, refunds, and products straight to QBO after every order, and pull product/price updates back. This needs a QBO developer account and an Intuit app connected to your company file — ~1–2 days work. Best when you're at higher volume and want bookkeeping to be invisible.
+
+### Option 4 — Paid connector (Commerce Sync / Synder / Webgility)
+
+These purpose-built e-commerce ↔ QBO connectors handle VAT, payout reconciliation, and Square/Stripe matching out of the box. You just point them at your Dr Cloud store's public URLs — they work with standard carts but will need a small custom integration for a bespoke Next.js store, so only worth it once you're doing real volume.
+
+**VAT note:** UK vape e-liquid carries 20% standard-rate VAT; nicotine-free hardware/accessories may also be standard-rated. Currently prices are entered inclusive of VAT at till (as is standard for UK retail). When importing, mark the Product/Service items in QBO as **Standard (20%) Inclusive of VAT** so gross figures match what the customer paid. Let me know if you want me to add a VAT column to the export.
