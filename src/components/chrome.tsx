@@ -24,7 +24,7 @@ export async function Chrome({ children }: { children: React.ReactNode }) {
         </div>
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4 relative">
           <Link href="/" aria-label="Dr Cloud — home" className="flex items-center shrink-0">
-            <Logo height={52} />
+            <Logo height={84} />
           </Link>
           <nav className="hidden md:flex gap-5 text-sm font-medium ml-2 text-slate-700">
             <Link href="/shop" className="hover:text-slate-900 transition">Shop</Link>
@@ -47,7 +47,7 @@ export async function Chrome({ children }: { children: React.ReactNode }) {
         <div className="max-w-7xl mx-auto px-4 py-10 grid md:grid-cols-3 gap-8 text-sm">
           <div>
             <div className="flex items-center gap-3">
-              <Logo height={64} />
+              <Logo height={72} />
               <div className="font-bold text-lg text-slate-900 leading-tight">{BRAND.fullName}<div className="text-xs font-medium text-slate-500">{BRAND.tagline}</div></div>
             </div>
             <p className="mt-3 text-slate-600">{fullAddress}</p>

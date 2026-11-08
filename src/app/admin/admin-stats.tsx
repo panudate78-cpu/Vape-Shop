@@ -12,7 +12,26 @@ function customerLabel(o: any) {
 
 export function AdminStatsClient() {
   const [d, setD] = useState<any>(null);
-  useEffect(() => { fetch('/api/admin/stats', { cache: 'no-store' }).then((r) => r.json()).then(setD); }, []);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch('/api/admin/stats', { cache: 'no-store' });
+        if (!r.ok) {
+          const t = await r.text();
+          if (alive) setErr(`Stats error (${r.status}): ${t.slice(0, 200)}`);
+          return;
+        }
+        const j = await r.json();
+        if (alive) setD(j);
+      } catch (e: any) {
+        if (alive) setErr(`Stats load failed: ${e?.message || e}`);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+  if (err) return <div className="mt-6 rounded-lg border border-red-500/40 bg-red-900/30 p-4 text-sm text-red-200">❌ {err} <button onClick={() => { setErr(null); setD(null); window.location.reload(); }} className="underline ml-2">Retry</button></div>;
   if (!d) return <div className="text-zinc-400 mt-6">Loading…</div>;
   return (
     <div className="mt-6 space-y-6">

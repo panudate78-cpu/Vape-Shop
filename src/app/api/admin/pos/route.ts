@@ -19,14 +19,18 @@ const bodySchema = z.object({
 let ensuredCols = false;
 async function ensurePosColumns() {
   if (ensuredCols) return;
-  try {
-    await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'online'`);
-    await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method TEXT`);
-    await db.execute(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS staff_note TEXT`);
-    ensuredCols = true;
-  } catch (e) {
-    console.warn('[pos] could not add columns:', (e as Error).message);
-  }
+  const tryAdd = async (stmt: ReturnType<typeof sql>) => {
+    try { await db.execute(stmt); } catch (e) {
+      const msg = (e as Error)?.message || '';
+      if (!/already exists|duplicate column/i.test(msg)) console.warn('[pos] column add warning:', msg);
+    }
+  };
+  await tryAdd(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS source TEXT`);
+  await tryAdd(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method TEXT`);
+  await tryAdd(sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS staff_note TEXT`);
+  await tryAdd(sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price NUMERIC(10,2)`);
+  try { await db.execute(sql`UPDATE orders SET source='online' WHERE source IS NULL OR source=''`); } catch {}
+  ensuredCols = true;
 }
 
 export async function GET() {
