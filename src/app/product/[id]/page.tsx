@@ -100,7 +100,7 @@ export default function ProductPage() {
                 unitPrice: v.price, stock: v.stockQuantity,
               });
             }}
-            className={`w-full rounded-xl px-6 py-3 text-sm font-extrabold ${v && v.stockQuantity > 0 ? 'bg-[#64B5F6] text-slate-900 hover:bg-[#4FA3E8]' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
+            className={`w-full rounded-xl px-6 py-3 text-sm font-extrabold ${v && v.stockQuantity > 0 ? 'bg-white border-2 border-[#64B5F6] text-[#64B5F6] hover:bg-[#64B5F6] hover:text-white' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
           >
             {v && v.stockQuantity > 0 ? 'Add to cart' : 'Out of stock'}
           </button>

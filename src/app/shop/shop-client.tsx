@@ -111,7 +111,7 @@ export function ShopClient({ categories, initialCategory, initialQ }: { categori
                               sku: top.sku, unitPrice: parseFloat(top.priceOverride || '0'), stock: top.stockQuantity,
                             });
                           }}
-                          className={`rounded-lg px-3 py-1.5 text-xs font-extrabold ${top ? 'bg-[#64B5F6] text-slate-900 hover:bg-[#4FA3E8]' : 'bg-slate-100 text-slate-400'}`}
+                          className={`rounded-lg px-3 py-1.5 text-xs font-extrabold ${top ? 'bg-white border-2 border-[#64B5F6] text-[#64B5F6] hover:bg-[#64B5F6] hover:text-white' : 'bg-slate-100 text-slate-400'}`}
                         >+ Quick add</button>
                       </div>
                     </div>

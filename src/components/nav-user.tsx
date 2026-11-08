@@ -15,7 +15,7 @@ export function StoreNavUser({ user }: { user?: User }) {
         <div className="hidden sm:flex items-center gap-3">
           <Link href={accountHref} className={isAdmin
             ? 'rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-black text-slate-900 hover:bg-amber-300 transition'
-            : 'text-slate-700 hover:text-slate-900 font-medium transition'}>
+            : 'text-[#64B5F6] hover:text-[#4FA3E8] font-medium transition'}>
             {isAdmin ? '🛠 Admin' : (user.fullName || user.email)}
           </Link>
           <LogoutButton />
@@ -34,12 +34,12 @@ export function StoreNavUser({ user }: { user?: User }) {
   return (
     <div className="flex items-center gap-2 text-sm">
       <div className="hidden sm:flex items-center gap-3">
-        <Link href="/login" className="text-slate-700 hover:text-slate-900 font-medium transition">Login</Link>
-        <Link href="/register" className="rounded-lg bg-[#64B5F6] px-3 py-1.5 text-sm font-bold text-slate-900 hover:bg-[#4FA3E8] transition shadow-sm">Sign up</Link>
+        <Link href="/login" className="text-[#64B5F6] hover:text-[#4FA3E8] font-medium transition">Login</Link>
+        <Link href="/register" className="rounded-lg bg-white border-2 border-[#64B5F6] text-[#64B5F6] px-3 py-1.5 text-sm font-bold hover:bg-[#4FA3E8] transition shadow-sm">Sign up</Link>
       </div>
       <Link
         href="/login"
-        className="sm:hidden rounded-lg bg-[#64B5F6] px-3 py-1.5 text-xs font-bold text-slate-900 hover:bg-[#4FA3E8] transition shadow-sm"
+        className="sm:hidden rounded-lg bg-white border-2 border-[#64B5F6] text-[#64B5F6] px-3 py-1.5 text-xs font-bold hover:bg-[#4FA3E8] transition shadow-sm"
       >
         Login
       </Link>
@@ -72,10 +72,10 @@ export function MobileNav() {
           <div className="md:hidden fixed inset-0 bg-slate-900/40 z-[60]" onClick={close} aria-hidden />
           <div className="md:hidden fixed inset-x-0 top-[112px] z-[70] bg-white border-b border-slate-200 shadow-xl">
             <nav className="flex flex-col px-4">
-              <Link href="/shop" onClick={close} className="py-4 text-lg border-b border-slate-100 text-slate-800 hover:text-slate-900 transition">Shop</Link>
-              <Link href="/visit" onClick={close} className="py-4 text-lg border-b border-slate-100 text-slate-800 hover:text-slate-900 transition">Visit</Link>
-              <Link href="/track" onClick={close} className="py-4 text-lg border-b border-slate-100 text-slate-800 hover:text-slate-900 transition">Track my order</Link>
-              <Link href="/login" onClick={close} className="py-4 text-lg text-slate-800 hover:text-slate-900 transition">Login / Sign up</Link>
+              <Link href="/shop" onClick={close} className="py-4 text-lg border-b border-slate-100 text-[#64B5F6] hover:text-[#4FA3E8] transition">Shop</Link>
+              <Link href="/visit" onClick={close} className="py-4 text-lg border-b border-slate-100 text-[#64B5F6] hover:text-[#4FA3E8] transition">Visit</Link>
+              <Link href="/track" onClick={close} className="py-4 text-lg border-b border-slate-100 text-[#64B5F6] hover:text-[#4FA3E8] transition">Track my order</Link>
+              <Link href="/login" onClick={close} className="py-4 text-lg text-[#64B5F6] hover:text-[#4FA3E8] transition">Login / Sign up</Link>
             </nav>
           </div>
         </>

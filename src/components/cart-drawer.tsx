@@ -42,7 +42,7 @@ export function CartDrawer() {
             <div className="mt-4 flex justify-between font-bold text-slate-900">
               <span>Subtotal</span><span>{gbp(cartSubtotal)}</span>
             </div>
-            <Link href="/checkout" onClick={() => setCartOpen(false)} className="rounded-xl bg-[#64B5F6] hover:bg-[#4FA3E8] text-slate-900 font-extrabold px-4 py-3 w-full mt-4 inline-block text-center">Checkout</Link>
+            <Link href="/checkout" onClick={() => setCartOpen(false)} className="rounded-xl bg-white border-2 border-[#64B5F6] text-[#64B5F6] hover:bg-[#64B5F6] hover:text-white font-extrabold px-4 py-3 w-full mt-4 inline-block text-center">Checkout</Link>
             <p className="text-xs text-slate-400 mt-3">Shipping calculated at checkout. 18+ only — age verification required.</p>
           </>
         )}

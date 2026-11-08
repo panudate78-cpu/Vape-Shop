@@ -3,16 +3,16 @@
 @tailwind utilities;
 
 :root {
-  --brand-surface: #BBDEFB; /* Material Blue 100 — pale sky blue (hero / header bar) */
-  --brand: #64B5F6;         /* Material Blue 300 — mid blue (buttons / accents on white) */
-  --brand-hover: #4FA3E8;   /* darker blue for button hover */
+  --brand: #64B5F6;         /* Material Blue 300 — hero / top bar / accent colour */
+  --brand-hover: #4FA3E8;   /* darker blue for hover */
   color-scheme: light;
 }
 html, body { @apply bg-white text-slate-900 antialiased; }
 
 .btn {@apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold transition;}
-.btn-primary {@apply btn bg-[#64B5F6] hover:bg-[#4FA3E8] text-slate-900 shadow-sm;}
-.btn-outline {@apply btn border border-slate-300 bg-white hover:border-slate-900 hover:text-slate-900 text-slate-700;}
+/* White button with blue writing on white pages */
+.btn-primary {@apply btn bg-white border-2 border-[#64B5F6] text-[#64B5F6] hover:bg-[#64B5F6] hover:text-white shadow-sm;}
+.btn-outline {@apply btn border border-slate-300 bg-white hover:border-[#64B5F6] hover:text-[#64B5F6] text-slate-700;}
 .btn-danger {@apply btn bg-red-600 hover:bg-red-500 text-white;}
 .btn-amber {@apply btn bg-amber-400 hover:bg-amber-300 text-slate-900;}
 .input {@apply w-full rounded-lg bg-white border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-[#64B5F6] focus:ring-[#64B5F6]/30 focus:ring-2 outline-none;}
@@ -26,7 +26,7 @@ html, body { @apply bg-white text-slate-900 antialiased; }
 .admin-dark .card {@apply bg-zinc-900/70 border-zinc-800 shadow-none;}
 .admin-dark .input {@apply bg-zinc-900 border-zinc-700 text-zinc-100 placeholder:text-zinc-500 focus:border-amber-400 focus:ring-amber-400/20;}
 .admin-dark .label {@apply text-zinc-300;}
-.admin-dark .btn-primary {@apply bg-amber-400 hover:bg-amber-300 text-zinc-950;}
+.admin-dark .btn-primary {@apply bg-amber-400 hover:bg-amber-300 text-zinc-950 border-0;}
 .admin-dark .btn-outline {@apply border-zinc-700 text-zinc-200 hover:border-zinc-100 hover:text-zinc-100 bg-transparent;}
 
 .divide-soft > * + * { border-top: 1px solid theme('colors.slate.100'); }

@@ -41,7 +41,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
           <p className="mt-3 text-slate-500 text-sm">Sorry, an unexpected error occurred. Please try again.</p>
         )}
         <div className="mt-6 flex gap-2 justify-center">
-          <button onClick={() => reset()} className="rounded-xl bg-[#64B5F6] hover:bg-[#4FA3E8] text-slate-900 font-extrabold px-5 py-2.5 text-sm">Try again</button>
+          <button onClick={() => reset()} className="rounded-xl bg-white border-2 border-[#64B5F6] text-[#64B5F6] hover:bg-[#64B5F6] hover:text-white font-extrabold px-5 py-2.5 text-sm">Try again</button>
           <a href="/" className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-bold text-slate-900 hover:bg-slate-100">Home</a>
         </div>
         {error.digest && <p className="mt-4 text-[11px] text-slate-500">Digest: {error.digest}</p>}

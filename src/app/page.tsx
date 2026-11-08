@@ -29,7 +29,7 @@ function ProductCard({ p, onAdd }: { p: P; onAdd: (p: P) => void }) {
         <p className="mt-1 text-xs text-slate-500">{p.variants.length} options · {p.totalStock} in stock</p>
         <div className="mt-2 flex items-center justify-between">
           <span className="font-extrabold text-slate-900">from {gbp(p.minPrice)}</span>
-          <button onClick={() => onAdd(p)} className="rounded-lg bg-[#64B5F6] hover:bg-[#4FA3E8] px-3 py-1.5 text-xs font-bold text-slate-900 transition shadow-sm">+ Quick add</button>
+          <button onClick={() => onAdd(p)} className="rounded-lg bg-white border-2 border-[#64B5F6] text-[#64B5F6] hover:bg-[#64B5F6] hover:text-white px-3 py-1.5 text-xs font-bold transition shadow-sm">+ Quick add</button>
         </div>
       </div>
     </div>
@@ -76,25 +76,25 @@ export default function Home() {
   return (
     <div>
       {/* HERO — blue brand colour */}
-      <section className="relative overflow-hidden bg-[#BBDEFB] text-slate-900">
+      <section className="relative overflow-hidden bg-[#64B5F6] text-white">
         <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-14 md:grid-cols-2 md:py-20 items-center">
           <div>
-            <p className="inline-flex items-center gap-2 rounded-full border border-slate-900/20 px-3 py-1 text-xs font-bold">
-              📍 {fullAddress} · <a href={BRAND.phoneHref} className="underline hover:text-black">{BRAND.phone}</a>
+            <p className="inline-flex items-center gap-2 rounded-full border border-white/25 px-3 py-1 text-xs font-bold text-white">
+              📍 {fullAddress} · <a href={BRAND.phoneHref} className="underline hover:text-white/80">{BRAND.phone}</a>
             </p>
-            <h1 className="mt-4 text-4xl font-black leading-[1.05] md:text-6xl text-slate-900">
+            <h1 className="mt-4 text-4xl font-black leading-[1.05] md:text-6xl text-white">
               Dr Cloud<br />Chessington<br />
-              <span className="text-slate-900/80">Vape & Mobile Store.</span>
+              <span className="text-white/85">Vape & Mobile Store.</span>
             </h1>
-            <p className="mt-4 max-w-md text-sm leading-relaxed text-slate-900/85 md:text-base">
+            <p className="mt-4 max-w-md text-sm leading-relaxed text-white/90 md:text-base">
               Your local Bridge Road vape shop — shortfills, nic salts, pods & mods, plus phone repairs while you wait.
               Order online for <b>same-day Click & Collect</b> or local delivery. Every order age-verified.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link href="/shop" className="rounded-xl bg-slate-900 px-6 py-3 text-sm font-extrabold text-white hover:bg-black transition shadow-sm">Shop E-Liquids →</Link>
-              <Link href="/visit" className="rounded-xl border-2 border-slate-900 px-6 py-3 text-sm font-extrabold text-slate-900 hover:bg-slate-900 hover:text-white transition">Visit the shop</Link>
+              <Link href="/shop" className="rounded-xl bg-white px-6 py-3 text-sm font-extrabold text-[#64B5F6] hover:bg-white/90 transition shadow-sm">Shop E-Liquids →</Link>
+              <Link href="/visit" className="rounded-xl border-2 border-white px-6 py-3 text-sm font-extrabold text-white hover:bg-white hover:text-[#64B5F6] transition">Visit the shop</Link>
             </div>
-            <div className="mt-6 flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-900/80">
+            <div className="mt-6 flex flex-wrap gap-x-6 gap-y-1 text-xs text-white/80">
               <span>★ 5.0 local reviews</span><span>⚡ Same-day Collect</span><span>🛡 18+ verified</span><span>📱 Repairs in-store</span>
             </div>
             <div className="mt-4 flex flex-wrap gap-2 text-[11px] text-slate-900">
@@ -138,7 +138,7 @@ export default function Home() {
           </div>
           <div className="flex gap-2 sm:ml-auto">
             <Link href="/visit" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-extrabold text-slate-800 hover:bg-slate-50 transition">Store info</Link>
-            <Link href="/shop" className="rounded-xl bg-[#64B5F6] px-4 py-2 text-xs font-extrabold text-slate-900 hover:bg-[#4FA3E8] transition shadow-sm">Order for collection →</Link>
+            <Link href="/shop" className="rounded-xl bg-white border-2 border-[#64B5F6] text-[#64B5F6] px-4 py-2 text-xs font-extrabold hover:bg-[#4FA3E8] transition shadow-sm">Order for collection →</Link>
           </div>
         </div>
       </section>

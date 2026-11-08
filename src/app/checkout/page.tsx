@@ -91,7 +91,7 @@ export default function CheckoutPage() {
   if (items.length === 0 && !loading) {
     return <div className="rounded-2xl border border-slate-200 bg-white text-center py-16">
       <p className="text-slate-500">Your cart is empty.</p>
-      <a href="/shop" className="rounded-xl bg-[#64B5F6] hover:bg-[#4FA3E8] text-slate-900 font-extrabold px-4 py-2 mt-4 inline-block">Shop now</a>
+      <a href="/shop" className="rounded-xl bg-white border-2 border-[#64B5F6] text-[#64B5F6] hover:bg-[#64B5F6] hover:text-white font-extrabold px-4 py-2 mt-4 inline-block">Shop now</a>
     </div>;
   }
 
@@ -179,7 +179,7 @@ export default function CheckoutPage() {
               <div className="flex justify-between font-bold text-xl pt-2 border-t border-slate-200 text-slate-900"><span>Total</span><span className="text-slate-900">{gbp(total)}</span></div>
             </div>
             {err && <div className="text-red-400 text-sm">{err}</div>}
-            <button type="submit" className="w-full rounded-xl bg-[#64B5F6] hover:bg-[#4FA3E8] text-slate-900 font-extrabold py-3 text-sm" disabled={loading}>
+            <button type="submit" className="w-full rounded-xl bg-white border-2 border-[#64B5F6] text-[#64B5F6] hover:bg-[#64B5F6] hover:text-white font-extrabold py-3 text-sm" disabled={loading}>
               {loading ? 'Processing…' : `Pay ${gbp(total)}`}
             </button>
             <p className="text-[11px] text-slate-400 text-center">By paying you confirm you are 18+. In-store Challenge 25 applies.</p>
