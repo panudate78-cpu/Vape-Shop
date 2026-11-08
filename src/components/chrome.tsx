@@ -27,9 +27,10 @@ export async function Chrome({ children }: { children: React.ReactNode }) {
             <Logo height={84} />
           </Link>
           <nav className="hidden md:flex gap-5 text-sm font-medium ml-2 text-slate-700">
-            <Link href="/shop" className="hover:text-slate-900 transition">Shop</Link>
-            <Link href="/visit" className="hover:text-slate-900 transition">Visit</Link>
-            <Link href="/track" className="hover:text-slate-900 transition">Track</Link>
+            <Link href="/shop" className="hover:text-[#4FA3E8] transition">Shop</Link>
+            <Link href="/visit" className="hover:text-[#4FA3E8] transition">Visit</Link>
+            <Link href="/contact" className="hover:text-[#4FA3E8] transition">Contact</Link>
+            <Link href="/track" className="hover:text-[#4FA3E8] transition">Track</Link>
           </nav>
           <div className="ml-auto flex items-center gap-2">
             <StoreNavUser user={user} />

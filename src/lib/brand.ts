@@ -24,6 +24,7 @@ export const BRAND = {
 
 // Full multi-line address for cards/footers/hero.
 export const fullAddress = `${BRAND.address.line1}, ${BRAND.address.line2}, ${BRAND.address.city}, ${BRAND.address.postcode}`;
-// Short single-line address for the thin top info bar (keeps things on one line on mobile).
-export const shortAddress = `${BRAND.address.line1}, ${BRAND.address.city}`;
+// Short single-line address for the thin top info bar (line1 + postcode is enough
+// context for the info bar while still fitting on one line on mobile).
+export const shortAddress = `${BRAND.address.line1}, ${BRAND.address.postcode}`;
 export const googleMapsUrl = BRAND.mapsUrl;

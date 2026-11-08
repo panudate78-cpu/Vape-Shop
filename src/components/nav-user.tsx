@@ -74,6 +74,7 @@ export function MobileNav() {
             <nav className="flex flex-col px-4">
               <Link href="/shop" onClick={close} className="py-4 text-lg border-b border-slate-100 text-[#64B5F6] hover:text-[#4FA3E8] transition">Shop</Link>
               <Link href="/visit" onClick={close} className="py-4 text-lg border-b border-slate-100 text-[#64B5F6] hover:text-[#4FA3E8] transition">Visit</Link>
+              <Link href="/contact" onClick={close} className="py-4 text-lg border-b border-slate-100 text-[#64B5F6] hover:text-[#4FA3E8] transition">Contact</Link>
               <Link href="/track" onClick={close} className="py-4 text-lg border-b border-slate-100 text-[#64B5F6] hover:text-[#4FA3E8] transition">Track my order</Link>
               <Link href="/login" onClick={close} className="py-4 text-lg text-[#64B5F6] hover:text-[#4FA3E8] transition">Login / Sign up</Link>
             </nav>
