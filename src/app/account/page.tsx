@@ -31,7 +31,7 @@ export default async function AccountPage() {
                 <tr key={o.id} className="border-t border-slate-200 hover:bg-white/60">
                   <td className="p-3"><Link href={`/order/${o.id}`} className="text-slate-900 underline">#{o.id}</Link></td>
                   <td className="p-3 text-slate-500">{new Date(o.createdAt!).toLocaleDateString()}</td>
-                  <td className="p-3"><span className="tag bg-slate-900/20 text-slate-900">{o.status}</span></td>
+                  <td className="p-3"><span className="tag bg-[#64B5F6]/20 text-slate-900">{o.status}</span></td>
                   <td className="p-3 text-slate-500">{o.collectionMode}</td>
                   <td className="p-3 text-right font-semibold">{formatPrice(o.totalAmount)}</td>
                 </tr>

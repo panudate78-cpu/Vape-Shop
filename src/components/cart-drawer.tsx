@@ -9,7 +9,7 @@ export function CartDrawer() {
   if (!cartOpen) return null;
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-slate-900/40" onClick={() => setCartOpen(false)} />
+      <div className="absolute inset-0 bg-[#64B5F6]/40" onClick={() => setCartOpen(false)} />
       <aside className="absolute right-0 top-0 h-full w-full max-w-md bg-white border-l border-slate-200 p-5 overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-extrabold text-slate-900">Your Cart ({cart.reduce((s, l) => s + l.quantity, 0)})</h2>
@@ -42,7 +42,7 @@ export function CartDrawer() {
             <div className="mt-4 flex justify-between font-bold text-slate-900">
               <span>Subtotal</span><span>{gbp(cartSubtotal)}</span>
             </div>
-            <Link href="/checkout" onClick={() => setCartOpen(false)} className="rounded-xl bg-slate-900 hover:bg-black text-white font-extrabold px-4 py-3 w-full mt-4 inline-block text-center">Checkout</Link>
+            <Link href="/checkout" onClick={() => setCartOpen(false)} className="rounded-xl bg-[#64B5F6] hover:bg-[#4FA3E8] text-slate-900 font-extrabold px-4 py-3 w-full mt-4 inline-block text-center">Checkout</Link>
             <p className="text-xs text-slate-400 mt-3">Shipping calculated at checkout. 18+ only — age verification required.</p>
           </>
         )}

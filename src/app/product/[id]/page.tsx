@@ -73,7 +73,7 @@ export default function ProductPage() {
               const out = vv.stockQuantity === 0;
               return (
                 <button key={vv.id} onClick={() => setSel(vv.id)} disabled={out}
-                  className={`text-left rounded-xl border p-3 text-sm transition ${active ? 'border-slate-900 bg-slate-50' : 'border-slate-200 hover:border-slate-400'} ${out ? 'opacity-40 cursor-not-allowed' : ''}`}>
+                  className={`text-left rounded-xl border p-3 text-sm transition ${active ? 'border-[#64B5F6] bg-slate-50' : 'border-slate-200 hover:border-slate-400'} ${out ? 'opacity-40 cursor-not-allowed' : ''}`}>
                   <div className="flex items-center gap-2">
                     {vv.color && /^#([0-9a-f]{3}){1,2}$/i.test(vv.color) && (
                       <span className="h-4 w-4 rounded-full border border-slate-300" style={{ background: vv.color }} />
@@ -100,7 +100,7 @@ export default function ProductPage() {
                 unitPrice: v.price, stock: v.stockQuantity,
               });
             }}
-            className={`w-full rounded-xl px-6 py-3 text-sm font-extrabold ${v && v.stockQuantity > 0 ? 'bg-slate-900 text-white hover:bg-black' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
+            className={`w-full rounded-xl px-6 py-3 text-sm font-extrabold ${v && v.stockQuantity > 0 ? 'bg-[#64B5F6] text-slate-900 hover:bg-[#4FA3E8]' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
           >
             {v && v.stockQuantity > 0 ? 'Add to cart' : 'Out of stock'}
           </button>

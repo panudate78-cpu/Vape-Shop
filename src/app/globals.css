@@ -2,15 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: light; }
+:root {
+  --brand: #64B5F6;
+  --brand-hover: #4FA3E8;
+  color-scheme: light;
+}
 html, body { @apply bg-white text-slate-900 antialiased; }
 
 .btn {@apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold transition;}
-.btn-primary {@apply btn bg-slate-900 hover:bg-black text-white shadow-sm;}
+.btn-primary {@apply btn bg-[#64B5F6] hover:bg-[#4FA3E8] text-slate-900 shadow-sm;}
 .btn-outline {@apply btn border border-slate-300 bg-white hover:border-slate-900 hover:text-slate-900 text-slate-700;}
 .btn-danger {@apply btn bg-red-600 hover:bg-red-500 text-white;}
 .btn-amber {@apply btn bg-amber-400 hover:bg-amber-300 text-slate-900;}
-.input {@apply w-full rounded-lg bg-white border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:ring-slate-900/20 focus:ring-2 outline-none;}
+.input {@apply w-full rounded-lg bg-white border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-[#64B5F6] focus:ring-[#64B5F6]/30 focus:ring-2 outline-none;}
 .label {@apply block text-sm font-semibold text-slate-900 mb-1;}
 .card {@apply rounded-xl bg-white border border-slate-200 p-5 shadow-sm;}
 .tag {@apply inline-flex items-center text-xs rounded-full px-2 py-0.5;}
@@ -19,7 +23,7 @@ html, body { @apply bg-white text-slate-900 antialiased; }
 /* Admin dark theme (applied when inside a .admin-dark wrapper) */
 .admin-dark { @apply bg-zinc-950 text-zinc-100; }
 .admin-dark .card {@apply bg-zinc-900/70 border-zinc-800 shadow-none;}
-.admin-dark .input {@apply bg-zinc-900 border-zinc-700 text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-100 focus:ring-zinc-100/20;}
+.admin-dark .input {@apply bg-zinc-900 border-zinc-700 text-zinc-100 placeholder:text-zinc-500 focus:border-amber-400 focus:ring-amber-400/20;}
 .admin-dark .label {@apply text-zinc-300;}
 .admin-dark .btn-primary {@apply bg-amber-400 hover:bg-amber-300 text-zinc-950;}
 .admin-dark .btn-outline {@apply border-zinc-700 text-zinc-200 hover:border-zinc-100 hover:text-zinc-100 bg-transparent;}

@@ -19,8 +19,8 @@ export async function Chrome({ children }: { children: React.ReactNode }) {
         ⚠️ This product contains nicotine. Nicotine is an addictive chemical. Adults 18+ only.
       </div>
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
-        <div className="bg-black text-white text-xs md:text-sm text-center py-1.5 font-semibold">
-          {fullAddress} · Same-day Click & Collect · Call <a href={BRAND.phoneHref} className="underline hover:text-white">{BRAND.phone}</a>
+        <div className="bg-[#64B5F6] text-slate-900 text-xs md:text-sm text-center py-1.5 font-semibold">
+          {fullAddress} · Same-day Click & Collect · Call <a href={BRAND.phoneHref} className="underline hover:text-black">{BRAND.phone}</a>
         </div>
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4 relative">
           <Link href="/" aria-label="Dr Cloud — home" className="flex items-center shrink-0">
@@ -59,7 +59,7 @@ export async function Chrome({ children }: { children: React.ReactNode }) {
             <ul className="mt-2 space-y-1 text-slate-600">
               {BRAND.hours.map((h) => <li key={h.day}>{h.day}: {h.time}</li>)}
             </ul>
-            <Link href="/visit" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-extrabold text-slate-900 inline-block mt-4 hover:bg-slate-50 hover:border-slate-900 transition">Directions & Click & Collect</Link>
+            <Link href="/visit" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-extrabold text-slate-900 inline-block mt-4 hover:bg-slate-50 hover:border-[#64B5F6] transition">Directions & Click & Collect</Link>
           </div>
           <div>
             <div className="font-semibold text-slate-900">Important</div>
@@ -68,7 +68,7 @@ export async function Chrome({ children }: { children: React.ReactNode }) {
               <li>Challenge 25 — ID may be required on collection.</li>
               <li>Keep out of reach of children and pets.</li>
             </ul>
-            <a href={googleMapsUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-extrabold text-slate-900 inline-block mt-4 hover:bg-slate-50 hover:border-slate-900 transition">Open in Google Maps</a>
+            <a href={googleMapsUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-extrabold text-slate-900 inline-block mt-4 hover:bg-slate-50 hover:border-[#64B5F6] transition">Open in Google Maps</a>
           </div>
         </div>
         <div className="border-t border-slate-200 py-4 text-center text-xs text-slate-500 flex flex-wrap items-center justify-center gap-3 bg-slate-50">

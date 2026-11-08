@@ -91,7 +91,7 @@ export default function CheckoutPage() {
   if (items.length === 0 && !loading) {
     return <div className="rounded-2xl border border-slate-200 bg-white text-center py-16">
       <p className="text-slate-500">Your cart is empty.</p>
-      <a href="/shop" className="rounded-xl bg-slate-900 hover:bg-black text-white font-extrabold px-4 py-2 mt-4 inline-block">Shop now</a>
+      <a href="/shop" className="rounded-xl bg-[#64B5F6] hover:bg-[#4FA3E8] text-slate-900 font-extrabold px-4 py-2 mt-4 inline-block">Shop now</a>
     </div>;
   }
 
@@ -103,12 +103,12 @@ export default function CheckoutPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
             <h2 className="font-extrabold text-slate-900">Collection method</h2>
             <div className="grid grid-cols-2 gap-3">
-              <label className={`rounded-xl border p-4 cursor-pointer transition ${mode === 'delivery' ? 'border-slate-900 bg-slate-50' : 'border-slate-200 hover:border-slate-900'}`}>
+              <label className={`rounded-xl border p-4 cursor-pointer transition ${mode === 'delivery' ? 'border-[#64B5F6] bg-slate-50' : 'border-slate-200 hover:border-[#4FA3E8]'}`}>
                 <input type="radio" name="mode" className="mr-2" checked={mode === 'delivery'} onChange={() => setMode('delivery')} />
                 <span className="font-bold text-slate-900">Delivery</span>
                 <p className="text-xs text-slate-500 mt-1">£3.99, free over £30</p>
               </label>
-              <label className={`rounded-xl border p-4 cursor-pointer transition ${mode === 'collect' ? 'border-slate-900 bg-slate-50' : 'border-slate-200 hover:border-slate-900'}`}>
+              <label className={`rounded-xl border p-4 cursor-pointer transition ${mode === 'collect' ? 'border-[#64B5F6] bg-slate-50' : 'border-slate-200 hover:border-[#4FA3E8]'}`}>
                 <input type="radio" name="mode" className="mr-2" checked={mode === 'collect'} onChange={() => setMode('collect')} />
                 <span className="font-bold text-slate-900">Click & Collect</span>
                 <p className="text-xs text-slate-500 mt-1">Free — Bridge Road, Chessington</p>
@@ -136,7 +136,7 @@ export default function CheckoutPage() {
             <p className="text-sm text-slate-500">UK law requires customers to be 18 or over. Enter your date of birth.</p>
             <div><label className="block text-xs font-bold text-slate-700 mb-1">Date of birth</label><input className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm w-full text-slate-900 outline-none" type="date" required value={dob} onChange={(e) => setDob(e.target.value)} /></div>
             <label className="flex gap-2 text-sm items-start">
-              <input type="checkbox" className="mt-1 accent-slate-900" checked={compliance} onChange={(e) => setCompliance(e.target.checked)} required />
+              <input type="checkbox" className="mt-1 accent-[#64B5F6]" checked={compliance} onChange={(e) => setCompliance(e.target.checked)} required />
               <span className="text-slate-700">I confirm I am aged 18 or over, that the information provided is correct, and I understand nicotine products are addictive. I may be asked for ID on collection/delivery (Challenge 25).</span>
             </label>
           </div>
@@ -179,7 +179,7 @@ export default function CheckoutPage() {
               <div className="flex justify-between font-bold text-xl pt-2 border-t border-slate-200 text-slate-900"><span>Total</span><span className="text-slate-900">{gbp(total)}</span></div>
             </div>
             {err && <div className="text-red-400 text-sm">{err}</div>}
-            <button type="submit" className="w-full rounded-xl bg-slate-900 hover:bg-black text-white font-extrabold py-3 text-sm" disabled={loading}>
+            <button type="submit" className="w-full rounded-xl bg-[#64B5F6] hover:bg-[#4FA3E8] text-slate-900 font-extrabold py-3 text-sm" disabled={loading}>
               {loading ? 'Processing…' : `Pay ${gbp(total)}`}
             </button>
             <p className="text-[11px] text-slate-400 text-center">By paying you confirm you are 18+. In-store Challenge 25 applies.</p>

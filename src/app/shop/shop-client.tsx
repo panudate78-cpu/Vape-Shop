@@ -88,7 +88,7 @@ export function ShopClient({ categories, initialCategory, initialQ }: { categori
               {products.map((p) => {
                 const top = [...p.variants].sort((a, b) => b.stockQuantity - a.stockQuantity)[0];
                 return (
-                  <div key={p.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white hover:border-slate-900/50 transition">
+                  <div key={p.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white hover:border-[#4FA3E8]/50 transition">
                     <Link href={`/product/${p.id}`}>
                       {p.images?.[0]
                         ? <PlaceholderImage src={p.images[0]} alt={p.name} className="h-44 w-full object-cover" />
@@ -111,7 +111,7 @@ export function ShopClient({ categories, initialCategory, initialQ }: { categori
                               sku: top.sku, unitPrice: parseFloat(top.priceOverride || '0'), stock: top.stockQuantity,
                             });
                           }}
-                          className={`rounded-lg px-3 py-1.5 text-xs font-extrabold ${top ? 'bg-slate-900 text-white hover:bg-black' : 'bg-slate-100 text-slate-400'}`}
+                          className={`rounded-lg px-3 py-1.5 text-xs font-extrabold ${top ? 'bg-[#64B5F6] text-slate-900 hover:bg-[#4FA3E8]' : 'bg-slate-100 text-slate-400'}`}
                         >+ Quick add</button>
                       </div>
                     </div>
