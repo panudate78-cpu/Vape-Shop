@@ -71,6 +71,19 @@ export default function ImportPage() {
       </div>
 
       <div className="card space-y-3">
+        <h2 className="font-semibold text-white">Download CSV template</h2>
+        <p className="text-sm text-zinc-400">
+          Blank template with the correct column headers plus a few example rows (an e-liquid, a pod kit, coils, batteries). Open in Excel/Sheets, replace the examples with your stock, save as CSV, then upload above.
+        </p>
+        <a
+          href="/admin/import/template.csv"
+          className="inline-flex items-center gap-2 rounded-lg bg-zinc-700 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-600"
+        >
+          ⬇ Download template.csv
+        </a>
+      </div>
+
+      <div className="card space-y-3">
         <h2 className="font-semibold text-white">Export current inventory</h2>
         <p className="text-sm text-zinc-400">
           Downloads a CSV of every product variant currently in the database (SKU, brand, product, flavor, nicotine, size, stock, price). Use this to make bulk edits, then re-import.
