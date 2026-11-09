@@ -169,7 +169,30 @@ export default function ProductEditor({ mode, productId }: { mode: "create" | "e
           </div>
         </div>
         {msg && <p className="text-xs font-bold text-amber-300">{msg}</p>}
-        <button onClick={save} disabled={saving} className="w-full rounded-xl bg-amber-400 py-3 text-sm font-black text-black hover:bg-amber-300">{saving ? "Saving…" : mode === "create" ? "Create product" : "Save changes"}</button>
+        <div className="flex gap-2">
+          <button onClick={save} disabled={saving} className="flex-1 rounded-xl bg-amber-400 py-3 text-sm font-black text-black hover:bg-amber-300">{saving ? "Saving…" : mode === "create" ? "Create product" : "Save changes"}</button>
+          {mode === "edit" && productId && (
+            <button
+              onClick={async () => {
+                if (!confirm("Delete this product?\n\n• If there are past orders for it, it will be hidden from the shop (but kept for accounting records).\n• If there are NO past orders, it will be permanently deleted.\n\nThis cannot be undone.")) return;
+                setSaving(true); setMsg("");
+                const r = await fetch(`/api/products/${productId}`, { method: "DELETE" });
+                const j = await r.json().catch(() => ({}));
+                setSaving(false);
+                if (!r.ok) { setMsg(j.error || "Delete failed"); return; }
+                if (j.softDeleted) {
+                  setMsg(`Deactivated (${j.orderCount} past order${j.orderCount === 1 ? '' : 's'} kept for records). Redirecting…`);
+                } else {
+                  setMsg("Product permanently deleted. Redirecting…");
+                }
+                setTimeout(() => router.push("/admin/products"), 800);
+              }}
+              disabled={saving}
+              className="rounded-xl bg-red-600 hover:bg-red-500 px-4 py-3 text-sm font-black text-white transition"
+              title="Delete product"
+            >🗑 Delete</button>
+          )}
+        </div>
       </div>
 
       <div className="h-fit rounded-2xl border border-violet-500/30 bg-violet-500/5 p-5 lg:sticky lg:top-24">

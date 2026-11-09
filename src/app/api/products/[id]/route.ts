@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { products, productVariants, categories } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -111,8 +111,32 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 }
 
 export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+  const { requireAdmin } = await import('@/lib/session');
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: 'Forbidden — sign in as admin' }, { status: 403 });
   const id = Number(params.id);
   if (isNaN(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  await db.update(products).set({ isActive: false }).where(eq(products.id, id));
-  return NextResponse.json({ ok: true });
+  const existing = await loadProduct(id);
+  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  // Check whether any order lines reference this product's variants — if there's
+  // sales history we soft-delete (deactivate) so past orders/QuickBooks exports
+  // still show the product name. If there's zero history, hard-delete so the
+  // product is fully removed from the catalogue.
+  const { orderItems } = await import('@/db/schema');
+  const [{ count }] = await db.select({ count: sql<number>`count(*)::int` })
+    .from(orderItems)
+    .innerJoin(productVariants, eq(productVariants.id, orderItems.variantId))
+    .where(eq(productVariants.productId, id));
+
+  if (count > 0) {
+    // Soft delete: deactivate product + all its variants (disappears from shop)
+    await db.update(products).set({ isActive: false }).where(eq(products.id, id));
+    await db.update(productVariants).set({ isActive: false }).where(eq(productVariants.productId, id));
+    return NextResponse.json({ ok: true, softDeleted: true, orderCount: count });
+  }
+
+  // Hard delete — cascade takes care of variants
+  await db.delete(products).where(eq(products.id, id));
+  return NextResponse.json({ ok: true, softDeleted: false });
 }
