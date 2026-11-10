@@ -2,13 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { gbp } from '@/lib/format';
-
-function customerLabel(o: any) {
-  const name = o.customerName || null;
-  const email = o.customerEmail || o.guestEmail || null;
-  if (name && email) return name;
-  return email || (o.userId ? `Account #${o.userId}` : 'Guest');
-}
+import { customerLabel, sourceBadge } from '@/lib/admin-helpers';
 
 export function AdminStatsClient() {
   const [d, setD] = useState<any>(null);
@@ -67,9 +61,7 @@ export function AdminStatsClient() {
               <li key={o.id} className="py-2.5 flex justify-between items-center gap-3">
                 <Link href={`/admin/orders/${o.id}`} className="text-amber-400 underline font-bold">#{o.id}</Link>
                 <span className="text-zinc-300 text-sm truncate flex-1">{customerLabel(o)}</span>
-                {o.source === 'pos'
-                  ? <span className="rounded-full bg-amber-400 text-black px-2 py-0.5 text-[10px] font-black whitespace-nowrap">IN-STORE · {(o.paymentMethod || '').toUpperCase()}</span>
-                  : <span className="rounded-full bg-white/10 text-zinc-200 px-2 py-0.5 text-[10px] font-bold whitespace-nowrap">ONLINE</span>}
+                {sourceBadge(o)}
                 <span className="text-zinc-500 text-xs whitespace-nowrap">{new Date(o.createdAt).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}</span>
                 <span className="rounded-full bg-amber-500/20 text-amber-300 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">{o.status}</span>
                 <span className="font-bold text-white whitespace-nowrap">{gbp(o.totalAmount)}</span>

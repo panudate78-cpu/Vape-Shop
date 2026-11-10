@@ -10,12 +10,12 @@ type P = {
   id: string; name: string; brand: string; basePrice: string; images: string[];
   categorySlug?: string | null; categoryName?: string | null;
   flavorProfile?: string | null; minPrice: number; totalStock: number;
-  variants: { id: string; sku: string; flavor?: string | null; nicotineStrength?: string | null; bottleSize?: string | null; color?: string | null; priceOverride?: string | null; stockQuantity: number }[];
+  variants: { id: string; sku: string; flavor?: string | null; nicotineStrength?: string | null; bottleSize?: string | null; color?: string | null; priceOverride?: number | null; price?: number; unitPrice?: number; stockQuantity: number }[];
 };
 
 function ProductCard({ p, onAdd }: { p: P; onAdd: (p: P) => void }) {
   return (
-    <div className="group overflow-hidden rounded-2xl border border-slate-200 bg-white hover:border-[#BBDEFB] hover:shadow-md transition">
+    <div className="group overflow-hidden rounded-2xl border border-slate-200 bg-white hover:border-[#64B5F6] hover:shadow-md transition">
       <Link href={`/product/${p.id}`}>
         {p.images?.[0] ? (
           <PlaceholderImage src={p.images[0]} alt={p.name} className="h-44 w-full object-cover bg-slate-100" />
@@ -37,14 +37,19 @@ function ProductCard({ p, onAdd }: { p: P; onAdd: (p: P) => void }) {
 }
 
 function quickAdd(p: P, addToCart: (i: any) => void) {
-  const v = [...p.variants].sort((a, b) => b.stockQuantity - a.stockQuantity)[0];
+  // Pick the variant with the most stock; tie-break by cheapest price.
+  const v = [...p.variants].sort((a, b) => {
+    const stockDiff = (b.stockQuantity ?? 0) - (a.stockQuantity ?? 0);
+    if (stockDiff !== 0) return stockDiff;
+    return (a.unitPrice ?? a.price ?? 0) - (b.unitPrice ?? b.price ?? 0);
+  })[0];
   if (!v) return;
   addToCart({
     variantId: v.id, productId: p.id, name: p.name, brand: p.brand,
     image: p.images?.[0],
     variantLabel: [v.flavor, v.nicotineStrength, v.bottleSize].filter(Boolean).join(" · "),
     sku: v.sku,
-    unitPrice: parseFloat(v.priceOverride || p.basePrice),
+    unitPrice: v.unitPrice ?? v.price ?? parseFloat(p.basePrice),
     stock: v.stockQuantity,
   });
 }
@@ -155,7 +160,7 @@ export default function Home() {
             { slug: "coils-tanks", emoji: "🌀", blurb: "Coils & tanks" },
             { slug: "accessories", emoji: "🎒", blurb: "Batteries, chargers & gear" },
           ].map((c) => (
-            <Link key={c.slug} href={`/shop?category=${c.slug}`} className="rounded-2xl border border-slate-200 bg-white p-5 hover:border-[#BBDEFB] hover:shadow-sm transition">
+            <Link key={c.slug} href={`/shop?category=${c.slug}`} className="rounded-2xl border border-slate-200 bg-white p-5 hover:border-[#64B5F6] hover:shadow-sm transition">
               <div className="text-3xl">{c.emoji}</div>
               <p className="mt-2 text-sm font-extrabold text-slate-900 capitalize">{c.slug.replace("-", " ")}</p>
               <p className="text-xs text-slate-500">{c.blurb}</p>

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { productVariants, products, categories } from "@/db/schema";
 import { eq, ilike, sql } from "drizzle-orm";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin } from "@/lib/session";
 
 function parseCsv(text: string): Record<string, string>[] {
   const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
@@ -79,7 +79,10 @@ export async function POST(req: Request) {
     const rows = parseCsv(text);
     if (!rows.length) return NextResponse.json({ error: "No rows found." }, { status: 400 });
     let updated = 0, created = 0, createdCategories = 0, updatedProducts = 0;
-    for (const r of rows) {
+    const errors: string[] = [];
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const rowNum = i + 2; // spreadsheet row (header = row 1)
       const sku = (r.sku || "").trim();
       const stock = parseInt(r.stock || "0", 10) || 0;
       const price = (r.price || "").trim() || null;
@@ -89,6 +92,7 @@ export async function POST(req: Request) {
       const images = parseImageList(r.images || r.image_urls);
       const description = (r.description || "").trim();
 
+      try {
       if (sku) {
         const existing = await db.select().from(productVariants).where(eq(productVariants.sku, sku)).limit(1);
         if (existing.length) {
@@ -164,8 +168,12 @@ export async function POST(req: Request) {
         isActive,
       });
       created++;
+      } catch (e: any) {
+        const ref = sku || (r.product_name || "").trim() || `row ${rowNum}`;
+        errors.push(`Row ${rowNum} (${ref}): ${e?.message || 'unknown error'}`);
+      }
     }
-    return NextResponse.json({ ok: true, updated, created, createdCategories, updatedProducts, total: rows.length });
+    return NextResponse.json({ ok: true, updated, created, createdCategories, updatedProducts, total: rows.length, errors });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Import failed: " + (e instanceof Error ? e.message : String(e)) }, { status: 500 });

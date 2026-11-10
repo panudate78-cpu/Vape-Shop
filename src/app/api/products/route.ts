@@ -1,10 +1,17 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { products, productVariants, categories } from '@/db/schema';
-import { eq, and, gte, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
+
+const HEX_COLOR_RE = /#[0-9a-fA-F]{3,8}\b/g;
+function scrubDesc(d: unknown): string {
+  // Defence-in-depth: strip stray hex colour codes that slipped past the editor
+  // (e.g. pasted rich text) so they never show to customers.
+  return String(d || "").replace(HEX_COLOR_RE, "").replace(/\s{2,}/g, " ").trim();
+}
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -46,8 +53,8 @@ export async function GET(req: Request) {
     if (!p) {
       p = {
         id: String(r.id),
-        name: r.name, brand: r.brand, description: r.description,
-        basePrice: Number(r.basePrice ?? 0).toFixed(2),
+        name: r.name, brand: r.brand, description: scrubDesc(r.description),
+        basePrice: Number(r.basePrice ?? 0),
         vgPgRatio: r.vgPgRatio, flavorProfile: r.flavorProfile,
         images: (r.images as string[] | null) || [],
         tags: (r.tags as string[] | null) || [],
@@ -60,20 +67,30 @@ export async function GET(req: Request) {
     }
     if (r.brand) brandSet.add(r.brand);
     if (r.v_id != null && r.v_isActive) {
-      const price = r.v_priceOverride != null ? Number(r.v_priceOverride) : Number(r.basePrice ?? 0);
+      const override = r.v_priceOverride != null ? Number(r.v_priceOverride) : NaN;
+      const unitPrice = !isNaN(override) && override > 0 ? override : Number(r.basePrice ?? 0);
       p.variants.push({
         id: String(r.v_id), sku: r.v_sku,
         flavor: r.v_flavor ?? '', nicotineStrength: r.v_nicotineStrength ?? '0mg',
         bottleSize: r.v_bottleSize ?? '10ml', color: r.v_color ?? null,
-        priceOverride: price.toFixed(2), stockQuantity: r.v_stockQuantity ?? 0,
+        priceOverride: !isNaN(override) && override > 0 ? Number(override.toFixed(2)) : null,
+        price: Number(unitPrice.toFixed(2)),
+        unitPrice: Number(unitPrice.toFixed(2)),
+        stockQuantity: r.v_stockQuantity ?? 0,
       });
     }
   }
 
   let list = Array.from(byId.values()).map((p) => {
-    const prices = p.variants.length ? p.variants.map((v: any) => Number(v.priceOverride)) : [Number(p.basePrice)];
+    const prices = p.variants.length ? p.variants.map((v: any) => v.unitPrice) : [p.basePrice];
     const totalStock = p.variants.reduce((s: number, v: any) => s + (v.stockQuantity ?? 0), 0);
-    return { ...p, minPrice: Math.min(...prices), totalStock, inStock: totalStock > 0 };
+    const minPrice = Math.min(...prices);
+    return {
+      ...p,
+      basePrice: Number(p.basePrice).toFixed(2),
+      minPrice: Number(minPrice.toFixed(2)),
+      totalStock, inStock: totalStock > 0,
+    };
   });
 
   if (maxPriceStr) {
@@ -86,9 +103,9 @@ export async function GET(req: Request) {
   else list = [...list].sort((a, b) => a.name.localeCompare(b.name));
 
   return NextResponse.json({
-    products: list.map(({ brandSet: _b, ...rest }) => rest),
+    products: list,
     brands: Array.from(brandSet).sort(),
-    categories: Array.from(byId.values()).length ? [] : [],
+    categories: [],
   });
 }
 
@@ -112,7 +129,7 @@ const productSchema = z.object({
   brand: z.string().min(1),
   categoryId: z.union([z.coerce.number(), z.null()]).optional(),
   description: z.string().default(''),
-  basePrice: z.coerce.number().nonnegative(),
+  basePrice: z.coerce.number().positive('Base price must be greater than £0'),
   vgPgRatio: z.string().default('70/30'),
   flavorProfile: z.string().default(''),
   tags: z.array(z.string()).default([]),
@@ -121,21 +138,28 @@ const productSchema = z.object({
   variants: z.array(variantSchema).default([]),
 });
 
+const HEX_COLOR_RE_SAVE = /#[0-9a-fA-F]{3,8}\b/g;
+
 export async function POST(req: Request) {
   const { requireAdmin } = await import('@/lib/session');
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: 'Forbidden — sign in as admin' }, { status: 403 });
   const body = await req.json().catch(() => ({}));
   const parsed = productSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: 'Bad product', issues: parsed.error.flatten() }, { status: 400 });
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    return NextResponse.json({ error: firstIssue ? `${firstIssue.path.join('.')}: ${firstIssue.message}` : 'Bad product' }, { status: 400 });
+  }
   const data = parsed.data;
+
+  const cleanDesc = String(data.description || '').replace(HEX_COLOR_RE_SAVE, '').replace(/\s{2,}/g, ' ').trim();
 
   const [p] = await db
     .insert(products)
     .values({
-      name: data.name, brand: data.brand,
+      name: data.name.trim(), brand: data.brand,
       categoryId: data.categoryId || null,
-      description: data.description,
+      description: cleanDesc,
       basePrice: data.basePrice.toFixed(2),
       vgPgRatio: data.vgPgRatio,
       flavorProfile: data.flavorProfile,
@@ -154,7 +178,7 @@ export async function POST(req: Request) {
       nicotineStrength: v.nicotineStrength,
       bottleSize: v.bottleSize,
       color: v.color,
-      priceOverride: v.priceOverride != null ? v.priceOverride.toFixed(2) : null,
+      priceOverride: v.priceOverride != null && v.priceOverride > 0 ? Number(v.priceOverride).toFixed(2) : null,
       stockQuantity: v.stockQuantity,
       lowStockThreshold: v.lowStockThreshold,
       isActive: v.isActive,

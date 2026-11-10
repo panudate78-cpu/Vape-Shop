@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { products, productVariants, categories } from '@/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
+
+const HEX_COLOR_RE = /#[0-9a-fA-F]{3,8}\b/g;
+function scrubDesc(d: unknown): string {
+  return String(d || '').replace(HEX_COLOR_RE, '').replace(/\s{2,}/g, ' ').trim();
+}
 
 async function loadProduct(id: number) {
   const [p] = await db
@@ -25,15 +30,18 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   if (isNaN(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const p = await loadProduct(id);
   if (!p) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  // Load ALL variants (including inactive/archived) so the editor can show
+  // archived rows dimmed with a reactivate toggle.
   const vs = await db
     .select()
     .from(productVariants)
     .where(eq(productVariants.productId, id))
     .orderBy(productVariants.flavor);
+  const base = Number(p.basePrice);
   return NextResponse.json({
     product: {
-      id: String(p.id), name: p.name, brand: p.brand, description: p.description,
-      basePrice: Number(p.basePrice).toFixed(2), vgPgRatio: p.vgPgRatio,
+      id: String(p.id), name: p.name, brand: p.brand, description: scrubDesc(p.description),
+      basePrice: Number(base).toFixed(2), vgPgRatio: p.vgPgRatio,
       flavorProfile: p.flavorProfile,
       images: (p.images as string[] | null) || [],
       tags: (p.tags as string[] | null) || [],
@@ -41,14 +49,20 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
       categoryId: p.categoryId != null ? String(p.categoryId) : null,
       categorySlug: p.categorySlug, categoryName: p.categoryName,
     },
-    variants: vs.map((v) => ({
-      id: String(v.id), sku: v.sku, flavor: v.flavor, nicotineStrength: v.nicotineStrength,
-      bottleSize: v.bottleSize, color: v.color,
-      price: Number(v.priceOverride ?? p.basePrice),
-      priceOverride: v.priceOverride != null ? Number(v.priceOverride).toFixed(2) : null,
-      stockQuantity: v.stockQuantity, lowStockThreshold: v.lowStockThreshold,
-      isActive: v.isActive,
-    })),
+    variants: vs.map((v) => {
+      const override = v.priceOverride != null ? Number(v.priceOverride) : NaN;
+      const unitPrice = !isNaN(override) && override > 0 ? override : base;
+      return {
+        id: String(v.id), sku: v.sku, flavor: v.flavor, nicotineStrength: v.nicotineStrength,
+        bottleSize: v.bottleSize, color: v.color,
+        basePrice: Number(base.toFixed(2)),
+        priceOverride: !isNaN(override) && override > 0 ? Number(override.toFixed(2)) : null,
+        price: Number(unitPrice.toFixed(2)),
+        unitPrice: Number(unitPrice.toFixed(2)),
+        stockQuantity: v.stockQuantity, lowStockThreshold: v.lowStockThreshold,
+        isActive: v.isActive,
+      };
+    }),
   });
 }
 
@@ -62,10 +76,18 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   const existing = await loadProduct(id);
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+  if (body.name !== undefined && !String(body.name).trim()) {
+    return NextResponse.json({ error: 'Name is required.' }, { status: 400 });
+  }
+  if (body.basePrice !== undefined) {
+    const bp = Number(body.basePrice);
+    if (isNaN(bp) || bp <= 0) return NextResponse.json({ error: 'Base price must be greater than £0.' }, { status: 400 });
+  }
+
   const patch: Record<string, any> = {};
-  if (body.name !== undefined) patch.name = body.name;
+  if (body.name !== undefined) patch.name = String(body.name).trim();
   if (body.brand !== undefined) patch.brand = body.brand;
-  if (body.description !== undefined) patch.description = body.description;
+  if (body.description !== undefined) patch.description = scrubDesc(body.description);
   if (body.basePrice !== undefined) patch.basePrice = Number(body.basePrice).toFixed(2);
   if (body.vgPgRatio !== undefined) patch.vgPgRatio = body.vgPgRatio;
   if (body.flavorProfile !== undefined) patch.flavorProfile = body.flavorProfile;
@@ -78,19 +100,21 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     await db.update(products).set(patch).where(eq(products.id, id));
   }
 
-  // Upsert variants if provided
   const variants = Array.isArray(body.variants) ? body.variants : [];
   for (const v of variants) {
+    // Drop brand-new rows that were immediately marked _delete — they never
+    // existed on the server so there's nothing to deactivate.
     if (v._delete && v.id) {
       await db.update(productVariants).set({ isActive: false }).where(eq(productVariants.id, Number(v.id)));
       continue;
     }
+    if (v._delete && !v.id) continue;
     const data: Record<string, any> = {
       flavor: v.flavor ?? '',
       nicotineStrength: v.nicotineStrength ?? '0mg',
       bottleSize: v.bottleSize ?? '10ml',
       color: v.color ?? null,
-      priceOverride: v.priceOverride != null && v.priceOverride !== '' ? Number(v.priceOverride).toFixed(2) : null,
+      priceOverride: v.priceOverride != null && v.priceOverride !== '' && Number(v.priceOverride) > 0 ? Number(v.priceOverride).toFixed(2) : null,
       stockQuantity: Number(v.stockQuantity ?? 0),
       lowStockThreshold: Number(v.lowStockThreshold ?? 5),
       isActive: v.isActive ?? true,
@@ -100,14 +124,14 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     } else {
       await db.insert(productVariants).values({
         productId: id,
-        sku: v.sku || `SKU-${Date.now().toString(36).toUpperCase()}`,
+        sku: v.sku || `SKU-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`,
         ...data,
       });
     }
   }
 
   const updated = await loadProduct(id);
-  return NextResponse.json(updated);
+  return NextResponse.json({ ok: true, name: updated.name });
 }
 
 export async function DELETE(_: Request, { params }: { params: { id: string } }) {
@@ -119,10 +143,9 @@ export async function DELETE(_: Request, { params }: { params: { id: string } })
   const existing = await loadProduct(id);
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  // Check whether any order lines reference this product's variants — if there's
-  // sales history we soft-delete (deactivate) so past orders/QuickBooks exports
-  // still show the product name. If there's zero history, hard-delete so the
-  // product is fully removed from the catalogue.
+  // The UI now always soft-archives via POST /archive. This endpoint is kept
+  // for belt-and-braces: if there's sales history we soft-delete (preserve
+  // accounting); otherwise we hard-delete.
   const { orderItems } = await import('@/db/schema');
   const [{ count }] = await db.select({ count: sql<number>`count(*)::int` })
     .from(orderItems)
@@ -130,13 +153,10 @@ export async function DELETE(_: Request, { params }: { params: { id: string } })
     .where(eq(productVariants.productId, id));
 
   if (count > 0) {
-    // Soft delete: deactivate product + all its variants (disappears from shop)
     await db.update(products).set({ isActive: false }).where(eq(products.id, id));
     await db.update(productVariants).set({ isActive: false }).where(eq(productVariants.productId, id));
     return NextResponse.json({ ok: true, softDeleted: true, orderCount: count });
   }
-
-  // Hard delete — cascade takes care of variants
   await db.delete(products).where(eq(products.id, id));
   return NextResponse.json({ ok: true, softDeleted: false });
 }
