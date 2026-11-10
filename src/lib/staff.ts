@@ -21,6 +21,8 @@ export type Permission =
   | 'profit.view'        // margin, gross profit, stock valuation at cost
   | 'cash.review'        // cash shift history with variances
   | 'audit.view'         // audit log
+  | 'compliance.view'    // refusal log, age-check log, product compliance records
+  | 'compliance.manage'  // product classification, compliance records, documents, blocks and recalls
   | 'staff.manage';      // staff accounts, roles and PINs
 
 const OWNER: StaffRole[] = ['ADMIN'];
@@ -38,6 +40,8 @@ export const PERMISSIONS: Record<Permission, StaffRole[]> = {
   'profit.view': OWNER,
   'cash.review': MANAGEMENT,
   'audit.view': MANAGEMENT,
+  'compliance.view': MANAGEMENT,
+  'compliance.manage': MANAGEMENT,
   'staff.manage': OWNER,
 };
 

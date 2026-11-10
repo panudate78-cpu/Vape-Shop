@@ -5,6 +5,7 @@ import { orders, orderItems, orderRefunds, orderRefundLines, payments, stockRese
 import { and, eq, sql } from 'drizzle-orm';
 import { applyStockChange } from '@/lib/stock';
 import { recordEvent, queueNotification, deliverNotifications } from '@/lib/order-events';
+import { orderIsRestricted, recordAgeCheck } from '@/lib/compliance';
 
 export type Fulfilment = 'unfulfilled' | 'processing' | 'ready' | 'shipped' | 'delivered' | 'collected' | 'cancelled';
 
@@ -52,6 +53,8 @@ export type FulfilmentInput = {
   carrier?: string | null;
   collectedBy?: string | null;
   idChecked?: boolean;
+  idType?: string | null;                                   // passport | uk_photocard_licence | pass_card | armed_forces | other
+  ageRefusal?: { reasonCode: string; note?: string | null } | null; // refused at the door: recorded, status unchanged
   note?: string | null;
 };
 
@@ -64,6 +67,24 @@ export async function updateFulfilment(orderId: number, input: FulfilmentInput, 
     const paid = PAID.includes(o.paymentStatus) || o.source === 'pos';
     const patch: Record<string, any> = { updatedAt: new Date() };
     const changes: Record<string, unknown> = {};
+    const restricted = (to === 'collected' || to === 'delivered' || input.ageRefusal) ? await orderIsRestricted(tx, orderId) : false;
+    const customer = { customerEmail: o.guestEmail ?? null, userId: o.userId ?? null };
+
+    // Age refused at handover: recorded with the reason; the order stays where it is.
+    if (input.ageRefusal) {
+      if (to !== from) throw new OrderError(409, 'Record the refusal without changing the order status.', 'REFUSAL_WITH_MOVE');
+      const onCounter = from === 'ready' && isCollect;
+      const atDoor = from === 'shipped' && !isCollect;
+      if (!onCounter && !atDoor) throw new OrderError(409, 'Refusals are recorded when handing over (ready for collection, or shipped for delivery).', 'BAD_STAGE');
+      const channel = isCollect ? 'collection' : 'delivery';
+      await recordAgeCheck(tx, {
+        channel, result: 'refused', method: 'id_seen', idType: input.idType ?? null,
+        reasonCode: input.ageRefusal.reasonCode, note: input.ageRefusal.note ?? null,
+        staffName: actor, orderId, ...customer,
+      });
+      await recordEvent(tx, orderId, 'age_refused', actor, { channel, reason: input.ageRefusal.reasonCode, note: input.ageRefusal.note ?? undefined });
+      return { from, to: from, queued: false, refused: true };
+    }
 
     if (input.trackingNumber !== undefined) {
       patch.trackingNumber = input.trackingNumber?.trim() || null;
@@ -90,11 +111,29 @@ export async function updateFulfilment(orderId: number, input: FulfilmentInput, 
         const who = (input.collectedBy ?? '').trim();
         if (!who) throw new OrderError(409, 'Record the name of the person collecting.', 'NO_HANDOVER_NAME');
         if (input.idChecked !== true) throw new OrderError(409, 'Check photo ID (Challenge 25) before handing over.', 'NO_ID_CHECK');
+        if (restricted && !input.idType) throw new OrderError(409, 'Record the type of ID shown.', 'NO_ID_TYPE');
         patch.collectedAt = new Date();
         patch.collectedBy = who;
         patch.idChecked = true;
         changes.collectedBy = who;
         changes.idChecked = true;
+        // Collection checks are recorded separately from online checks.
+        await recordAgeCheck(tx, {
+          channel: 'collection', result: 'passed', method: 'id_seen', idType: input.idType ?? null,
+          staffName: actor, orderId, ...customer,
+        });
+      }
+      if (to === 'delivered' && restricted) {
+        if (input.idChecked !== true) throw new OrderError(409, 'Check the recipient\'s photo ID before marking delivered (age-restricted items).', 'NO_ID_CHECK');
+        const who = (input.collectedBy ?? '').trim();
+        if (!who) throw new OrderError(409, 'Record the name of the person receiving the parcel.', 'NO_HANDOVER_NAME');
+        if (!input.idType) throw new OrderError(409, 'Record the type of ID shown.', 'NO_ID_TYPE');
+        changes.recipientName = who;
+        changes.idChecked = true;
+        await recordAgeCheck(tx, {
+          channel: 'delivery', result: 'passed', method: 'id_seen', idType: input.idType,
+          staffName: actor, orderId, ...customer,
+        });
       }
       if (to === 'cancelled') {
         if (paid) throw new OrderError(409, 'This order is paid. Refund it instead of cancelling.', 'PAID');
@@ -126,7 +165,7 @@ export async function updateFulfilment(orderId: number, input: FulfilmentInput, 
     } else if (Object.keys(changes).length) {
       await recordEvent(tx, orderId, 'tracking', actor, changes);
     }
-    return { from, to, queued };
+    return { from, to, queued, refused: false };
   });
 
   if (outcome.queued) deliverNotifications(orderId).catch((e) => console.error('[fulfilment] notify failed', e));

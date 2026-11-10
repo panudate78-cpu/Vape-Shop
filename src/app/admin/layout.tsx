@@ -34,6 +34,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     ...(backOffice ? [
       { href: "/admin/orders", label: "📦 Orders" },
       { href: "/admin/stock", label: "📦 Stock control" },
+      { href: "/admin/compliance", label: "🛡 Compliance" },
       { href: "/admin/inventory", label: "📉 Inventory" },
       { href: "/admin/products", label: "🧴 Products" },
       { href: "/admin/categories", label: "🏷 Categories" },

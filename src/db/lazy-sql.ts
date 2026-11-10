@@ -3,6 +3,34 @@
 // them against an up-to-date database is a no-op. No foreign keys are declared
 // on purpose: it keeps the statements order-independent and cheap to re-run.
 export const LAZY_SQL: string[] = [
+  // ---- compliance: product classification, records, blocks, age checks ----
+  `ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS product_kind TEXT NOT NULL DEFAULT 'unclassified'`,
+  `ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS device_type TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS compatibility TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS vg_pg TEXT`,
+  `ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS age_restricted BOOLEAN NOT NULL DEFAULT TRUE`,
+  `CREATE TABLE IF NOT EXISTS compliance_records (
+     id SERIAL PRIMARY KEY, variant_id INTEGER NOT NULL UNIQUE,
+     mhra_notification_ref TEXT, batch_number TEXT, nicotine_mg_ml NUMERIC(6,2), bottle_ml NUMERIC(6,2), tank_ml NUMERIC(6,2),
+     child_resistant BOOLEAN NOT NULL DEFAULT FALSE, tamper_evident BOOLEAN NOT NULL DEFAULT FALSE,
+     label_checked_at TIMESTAMP, label_checked_by TEXT, supplier_name TEXT, notes TEXT DEFAULT '',
+     updated_at TIMESTAMP NOT NULL DEFAULT NOW(), updated_by TEXT)`,
+  `CREATE TABLE IF NOT EXISTS compliance_documents (
+     id SERIAL PRIMARY KEY, variant_id INTEGER, product_id INTEGER, supplier_name TEXT,
+     kind TEXT NOT NULL, title TEXT NOT NULL, url TEXT NOT NULL, expires_at TIMESTAMP,
+     uploaded_by TEXT, uploaded_at TIMESTAMP NOT NULL DEFAULT NOW())`,
+  `CREATE INDEX IF NOT EXISTS compliance_documents_variant_idx ON compliance_documents (variant_id)`,
+  `CREATE TABLE IF NOT EXISTS product_blocks (
+     id SERIAL PRIMARY KEY, kind TEXT NOT NULL, scope TEXT NOT NULL, variant_id INTEGER, product_id INTEGER,
+     reason TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', created_by TEXT,
+     created_at TIMESTAMP NOT NULL DEFAULT NOW(), lifted_by TEXT, lifted_at TIMESTAMP, lift_reason TEXT)`,
+  `CREATE INDEX IF NOT EXISTS product_blocks_variant_idx ON product_blocks (variant_id, status)`,
+  `CREATE TABLE IF NOT EXISTS age_checks (
+     id SERIAL PRIMARY KEY, at TIMESTAMP NOT NULL DEFAULT NOW(), channel TEXT NOT NULL, result TEXT NOT NULL,
+     method TEXT NOT NULL, id_type TEXT, reason_code TEXT, note TEXT, staff_name TEXT, register TEXT,
+     order_id INTEGER, sale_order_id INTEGER, customer_email TEXT, user_id INTEGER, product_summary TEXT)`,
+  `CREATE INDEX IF NOT EXISTS age_checks_order_idx ON age_checks (order_id)`,
+  `CREATE INDEX IF NOT EXISTS age_checks_result_idx ON age_checks (result, at)`,
   // ---- orders: POS + returns ----
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS source TEXT`,
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method TEXT`,
