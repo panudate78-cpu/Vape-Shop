@@ -4,6 +4,7 @@ import { orders, orderItems, productVariants, products, categories, payments } f
 import { eq, inArray, sql, and, gte } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth";
 import { ensurePosSchema } from "@/lib/pos-schema";
+import { applyStockChange, releaseExpiredReservations, StockError } from "@/lib/stock";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -63,6 +64,7 @@ export async function GET(req: Request) {
     size: productVariants.bottleSize,
     color: productVariants.color,
     stock: productVariants.stockQuantity,
+    reserved: productVariants.reservedQuantity,
     priceOverride: productVariants.priceOverride,
     basePrice: products.basePrice,
     isActive: productVariants.isActive,
@@ -87,7 +89,7 @@ export async function GET(req: Request) {
       category: r.categoryName || "Other",
       variantLabel: variantLabel({ flavor: r.flavor, nicotineStrength: r.nicotine, bottleSize: r.size, color: r.color }),
       image: Array.isArray(r.images) ? (r.images as string[])[0] : null,
-      stock: r.stock,
+      stock: Math.max(0, r.stock - r.reserved), // available to sell (held web checkouts excluded)
       price,
     };
   };
@@ -101,7 +103,7 @@ export async function GET(req: Request) {
   return NextResponse.json({
     discountCap: a.role === "ADMIN" ? MANAGER_CAP : STAFF_CAP,
     items: rows
-      .filter((r) => r.isActive && r.productActive !== false && r.stock > 0)
+      .filter((r) => r.isActive && r.productActive !== false && r.stock - r.reserved > 0)
       .map(shape),
   });
 }
@@ -110,6 +112,7 @@ export async function POST(req: Request) {
   const a = await requireAdmin();
   if (!a) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   await ensurePosSchema();
+  await releaseExpiredReservations().catch(() => {});
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: "Invalid body", issues: parsed.error.flatten() }, { status: 400 });
@@ -142,7 +145,7 @@ export async function POST(req: Request) {
       : [];
 
     // Pro-rata share of any basket-level discount so refunds match what was paid.
-    const linesGross = origLines.reduce((s, l) => s + toC(Number(l.unitPrice)) * l.quantity, 0);
+    const linesGross = origLines.reduce((sum, l) => sum + toC(Number(l.unitPrice)) * l.quantity, 0);
     const ratio = linesGross > 0 ? toC(Number(orig.totalAmount)) / linesGross : 1;
 
     let refundC = 0;
@@ -150,8 +153,8 @@ export async function POST(req: Request) {
     for (const it of body.items) {
       const ol = origLines.find((l) => l.variantId === it.variantId);
       if (!ol) return NextResponse.json({ error: `Variant ${it.variantId} was not on the original sale` }, { status: 400 });
-      const alreadyBack = priorLines.filter((l) => l.variantId === it.variantId).reduce((s, l) => s - l.quantity, 0);
-      const sold = origLines.filter((l) => l.variantId === it.variantId).reduce((s, l) => s + l.quantity, 0);
+      const alreadyBack = priorLines.filter((l) => l.variantId === it.variantId).reduce((sum, l) => sum - l.quantity, 0);
+      const sold = origLines.filter((l) => l.variantId === it.variantId).reduce((sum, l) => sum + l.quantity, 0);
       if (it.quantity > sold - alreadyBack) {
         return NextResponse.json({ error: `${ol.productName} — only ${sold - alreadyBack} left to return` }, { status: 400 });
       }
@@ -161,28 +164,41 @@ export async function POST(req: Request) {
     }
 
     const refund = fromC(refundC);
-    const [ret] = await db.insert(orders).values({
-      userId: null, guestEmail: null, status: "refunded",
-      subtotal: fromC(-refundC).toFixed(2), discount: "0.00", shippingCost: "0.00",
-      totalAmount: fromC(-refundC).toFixed(2),
-      collectionMode: "collect", paymentGateway: "pos",
-      paymentIntentId: intentId || `pos_${Date.now()}`,
-      paymentStatus: "refunded", source: "pos",
-      paymentMethod: `refund_${body.paymentMethod}`,
-      staffNote: body.staffNote || null,
-      parentOrderId: orig.id, refundReason: body.refundReason!.trim(),
-      dobVerified: true, complianceAccepted: true,
-    } as any).returning();
-
-    await db.insert(orderItems).values(retLines.map((l) => ({ orderId: ret.id, ...l, unitPrice: l.unitPrice.toFixed(2) })));
-    for (const l of retLines) {
-      await db.update(productVariants).set({ stockQuantity: sql`${productVariants.stockQuantity} + ${-l.quantity}` }).where(eq(productVariants.id, l.variantId));
+    const saleKey = intentId ? body.idempotencyKey! : crypto.randomUUID();
+    try {
+      const ret = await db.transaction(async (tx) => {
+        const [r] = await tx.insert(orders).values({
+          userId: null, guestEmail: null, status: "refunded",
+          subtotal: fromC(-refundC).toFixed(2), discount: "0.00", shippingCost: "0.00",
+          totalAmount: fromC(-refundC).toFixed(2),
+          collectionMode: "collect", paymentGateway: "pos",
+          paymentIntentId: intentId || `pos_${saleKey}`,
+          paymentStatus: "refunded", source: "pos",
+          paymentMethod: `refund_${body.paymentMethod}`,
+          staffNote: body.staffNote || null,
+          parentOrderId: orig.id, refundReason: body.refundReason!.trim(),
+          dobVerified: true, complianceAccepted: true,
+        } as any).returning();
+        await tx.insert(orderItems).values(retLines.map((l) => ({ orderId: r.id, ...l, unitPrice: l.unitPrice.toFixed(2) })));
+        for (const l of retLines) {
+          // Goods coming back: +stock, ledger reason "return".
+          await applyStockChange(tx, {
+            variantId: l.variantId, delta: -l.quantity, reason: "return", actor: a.email,
+            orderId: r.id, note: `Return against sale #${orig.id}: ${body.refundReason!.trim()}`,
+            refKey: `return:${orig.id}:${saleKey}:${l.variantId}`,
+          });
+        }
+        await tx.insert(payments).values({
+          orderId: r.id, gateway: "pos", gatewayTransactionId: `pos_refund_${body.paymentMethod}_${saleKey}`,
+          amount: (-refund).toFixed(2), status: "refunded", raw: { parentOrderId: orig.id, refundReason: body.refundReason },
+        });
+        return r;
+      });
+      return NextResponse.json({ ok: true, orderId: ret.id, total: -refund, refund, items: retLines.length, parentOrderId: orig.id });
+    } catch (e) {
+      if (e instanceof StockError) return NextResponse.json({ error: e.message }, { status: 409 });
+      throw e;
     }
-    await db.insert(payments).values({
-      orderId: ret.id, gateway: "pos", gatewayTransactionId: `pos_refund_${body.paymentMethod}_${Date.now()}`,
-      amount: (-refund).toFixed(2), status: "refunded", raw: { parentOrderId: orig.id, refundReason: body.refundReason },
-    });
-    return NextResponse.json({ ok: true, orderId: ret.id, total: -refund, refund, items: retLines.length, parentOrderId: orig.id });
   }
 
   // ---- Normal sale ----------------------------------------------------------
@@ -197,9 +213,10 @@ export async function POST(req: Request) {
   for (const it of body.items) {
     const v = variants.find((x) => x.id === it.variantId);
     if (!v) return NextResponse.json({ error: `Variant ${it.variantId} not found` }, { status: 400 });
-    if (v.stockQuantity < it.quantity) {
+    const available = v.stockQuantity - v.reservedQuantity;
+    if (available < it.quantity) {
       const p = prodById.get(v.productId);
-      return NextResponse.json({ error: `${p?.name} — only ${v.stockQuantity} in stock` }, { status: 409 });
+      return NextResponse.json({ error: `${p?.name} — only ${Math.max(0, available)} available` }, { status: 409 });
     }
     const pct = it.lineDiscountPct ?? 0;
     if (pct > cap) return NextResponse.json({ error: `Line discount ${pct}% exceeds your limit of ${cap}%` }, { status: 403 });
@@ -247,22 +264,6 @@ export async function POST(req: Request) {
     changeC = cashTenderedC - cashPartC;
   }
 
-  // Stock: decrement with a conditional update; roll back on a race.
-  const decremented: { variantId: number; quantity: number }[] = [];
-  for (const li of lineItems) {
-    const res = await db.update(productVariants)
-      .set({ stockQuantity: sql`${productVariants.stockQuantity} - ${li.quantity}` })
-      .where(and(eq(productVariants.id, li.variantId), gte(productVariants.stockQuantity, li.quantity)))
-      .returning({ id: productVariants.id });
-    if (res.length === 0) {
-      for (const d of decremented) {
-        await db.update(productVariants).set({ stockQuantity: sql`${productVariants.stockQuantity} + ${d.quantity}` }).where(eq(productVariants.id, d.variantId));
-      }
-      return NextResponse.json({ error: `${li.productName} just sold out — please re-check the basket` }, { status: 409 });
-    }
-    decremented.push({ variantId: li.variantId, quantity: li.quantity });
-  }
-
   // Duplicate fallback for clients without an idempotency key (3s window)
   if (!intentId) {
     const [recent] = await db.select().from(orders).where(and(
@@ -270,68 +271,76 @@ export async function POST(req: Request) {
       eq(orders.totalAmount, fromC(totalC).toFixed(2)),
       gte(orders.createdAt, sql`NOW() - INTERVAL '3 seconds'`),
     )).limit(1);
-    if (recent) {
-      for (const d of decremented) {
-        await db.update(productVariants).set({ stockQuantity: sql`${productVariants.stockQuantity} + ${d.quantity}` }).where(eq(productVariants.id, d.variantId));
-      }
-      return NextResponse.json({ ok: true, duplicate: true, orderId: recent.id, total: Number(recent.totalAmount) });
-    }
+    if (recent) return NextResponse.json({ ok: true, duplicate: true, orderId: recent.id, total: Number(recent.totalAmount) });
   }
 
+  const saleKey = intentId ? body.idempotencyKey! : crypto.randomUUID();
   const primary = body.paymentMethod === "split" ? "split" : body.paymentMethod;
-  const [order] = await db.insert(orders).values({
-    userId: null,
-    guestEmail: null,
-    status: "collected", // in-store sale = already handed over
-    subtotal: fromC(grossC).toFixed(2),
-    discount: fromC(totalDiscC).toFixed(2),
-    shippingCost: "0.00",
-    totalAmount: fromC(totalC).toFixed(2),
-    shippingAddress: null,
-    collectionMode: "collect",
-    paymentGateway: "pos",
-    paymentIntentId: intentId || `pos_${Date.now()}`,
-    paymentStatus: "paid",
-    source: "pos",
-    paymentMethod: primary,
-    paymentBreakdown: body.paymentMethod === "split" ? paymentParts.map((p) => ({ method: p.method, amount: p.amount })) : null,
-    cashTendered: cashTenderedC != null ? fromC(cashTenderedC).toFixed(2) : null,
-    changeGiven: changeC != null ? fromC(changeC).toFixed(2) : null,
-    staffNote: body.staffNote || null,
-    dobVerified: true, // assume staff ID'd customer at the till (Challenge 25)
-    complianceAccepted: true,
-  } as any).returning();
+  try {
+    const order = await db.transaction(async (tx) => {
+      const [o] = await tx.insert(orders).values({
+        userId: null,
+        guestEmail: null,
+        status: "collected", // in-store sale = already handed over
+        subtotal: fromC(grossC).toFixed(2),
+        discount: fromC(totalDiscC).toFixed(2),
+        shippingCost: "0.00",
+        totalAmount: fromC(totalC).toFixed(2),
+        shippingAddress: null,
+        collectionMode: "collect",
+        paymentGateway: "pos",
+        paymentIntentId: intentId || `pos_${saleKey}`,
+        paymentStatus: "paid",
+        source: "pos",
+        paymentMethod: primary,
+        paymentBreakdown: body.paymentMethod === "split" ? paymentParts.map((p) => ({ method: p.method, amount: p.amount })) : null,
+        cashTendered: cashTenderedC != null ? fromC(cashTenderedC).toFixed(2) : null,
+        changeGiven: changeC != null ? fromC(changeC).toFixed(2) : null,
+        staffNote: body.staffNote || null,
+        dobVerified: true, // assume staff ID'd customer at the till (Challenge 25)
+        complianceAccepted: true,
+      } as any).returning();
 
-  await db.insert(orderItems).values(
-    lineItems.map((li) => ({
+      await tx.insert(orderItems).values(
+        lineItems.map((li) => ({
+          orderId: o.id, variantId: li.variantId, productName: li.productName, variantLabel: li.variantLabel,
+          sku: li.sku, quantity: li.quantity, unitPrice: li.unitPrice.toFixed(2),
+        }))
+      );
+
+      // Stock out via the shared ledger. Throws (and rolls back the whole sale) if
+      // another sale or a web checkout took the last unit in the meantime.
+      for (const li of lineItems) {
+        await applyStockChange(tx, {
+          variantId: li.variantId, delta: -li.quantity, reason: "sale_till", actor: a.email,
+          orderId: o.id, refKey: `sale:till:${saleKey}:${li.variantId}`,
+        });
+      }
+
+      await tx.insert(payments).values(paymentParts.map((p) => ({
+        orderId: o.id,
+        gateway: "pos",
+        gatewayTransactionId: `pos_${p.method}_${saleKey}_${p.method}`,
+        amount: p.amount.toFixed(2),
+        status: "paid",
+        raw: { paymentMethod: p.method, staffNote: body.staffNote, recordedOnly: p.method === "card" },
+      })));
+      return o;
+    });
+
+    return NextResponse.json({
+      ok: true,
       orderId: order.id,
-      variantId: li.variantId,
-      productName: li.productName,
-      variantLabel: li.variantLabel,
-      sku: li.sku,
-      quantity: li.quantity,
-      unitPrice: li.unitPrice.toFixed(2),
-    }))
-  );
-
-  await db.insert(payments).values(paymentParts.map((p) => ({
-    orderId: order.id,
-    gateway: "pos",
-    gatewayTransactionId: `pos_${p.method}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-    amount: p.amount.toFixed(2),
-    status: "paid",
-    raw: { paymentMethod: p.method, staffNote: body.staffNote, recordedOnly: p.method === "card" },
-  })));
-
-  return NextResponse.json({
-    ok: true,
-    orderId: order.id,
-    total: fromC(totalC),
-    subtotal: fromC(grossC),
-    discount: fromC(totalDiscC),
-    change: changeC != null ? fromC(changeC) : 0,
-    items: lineItems.length,
-  });
+      total: fromC(totalC),
+      subtotal: fromC(grossC),
+      discount: fromC(totalDiscC),
+      change: changeC != null ? fromC(changeC) : 0,
+      items: lineItems.length,
+    });
+  } catch (e) {
+    if (e instanceof StockError) return NextResponse.json({ error: e.message }, { status: 409 });
+    throw e;
+  }
 }
 
 function gbpStr(c: number) { return `£${(c / 100).toFixed(2)}`; }

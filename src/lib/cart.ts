@@ -28,6 +28,7 @@ export async function resolveCart(lines: CartLine[]): Promise<CartItem[]> {
       bottleSize: productVariants.bottleSize,
       priceOverride: productVariants.priceOverride,
       stockQuantity: productVariants.stockQuantity,
+      reservedQuantity: productVariants.reservedQuantity,
       productName: products.name,
       images: products.images,
       basePrice: products.basePrice,
@@ -50,7 +51,8 @@ export async function resolveCart(lines: CartLine[]): Promise<CartItem[]> {
         variantLabel: label,
         unitPrice: price,
         quantity: l.quantity,
-        stockQuantity: v.stockQuantity ?? 0,
+        // available = on hand minus units held by other checkouts
+        stockQuantity: Math.max(0, (v.stockQuantity ?? 0) - (v.reservedQuantity ?? 0)),
         image: (v.images as string[] | undefined)?.[0],
       } as CartItem;
     })

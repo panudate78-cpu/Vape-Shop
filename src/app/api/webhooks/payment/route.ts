@@ -4,6 +4,7 @@ import { orders, orderItems, productVariants, promoCodes, payments } from '@/db/
 import { eq, inArray, sql } from 'drizzle-orm';
 import { verifyWebhook } from '@/lib/payments';
 import { sendOrderEmailsForOrder } from '@/lib/order-emails';
+import { finalizeOnlinePayment } from '@/lib/stock';
 
 // Real webhook endpoint. For mock gateway, the capture route does the same work.
 export async function POST(req: Request) {
@@ -18,19 +19,14 @@ export async function POST(req: Request) {
   if (order.paymentStatus === 'paid') return NextResponse.json({ ok: true });
 
   if (wh.status === 'paid') {
-    const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
-    const variantIds = items.map((i) => i.variantId).filter((x): x is number => x != null);
-    const variants = await db.select().from(productVariants).where(inArray(productVariants.id, variantIds));
-    for (const it of items) {
-      const v = variants.find((x) => x.id === it.variantId);
-      if (!v || v.stockQuantity < it.quantity) return NextResponse.json({ error: 'stock' }, { status: 409 });
+    // Atomic: stock + order + promo + payment together. Retries are safe (no double deduction).
+    try {
+      const r = await finalizeOnlinePayment(orderId, { gatewayTransactionId: wh.paymentId, raw: body });
+      if (r.alreadyPaid) return NextResponse.json({ ok: true });
+    } catch (e: any) {
+      console.error('[webhook] stock conflict after payment:', orderId, e?.message);
+      return NextResponse.json({ error: 'stock' }, { status: 409 });
     }
-    for (const it of items) {
-      await db.update(productVariants).set({ stockQuantity: sql`${productVariants.stockQuantity} - ${it.quantity}` }).where(eq(productVariants.id, it.variantId!));
-    }
-    await db.update(orders).set({ paymentStatus: 'paid', status: 'processing', updatedAt: new Date() }).where(eq(orders.id, orderId));
-    if (order.promoCode) await db.update(promoCodes).set({ timesUsed: sql`${promoCodes.timesUsed} + 1` }).where(eq(promoCodes.code, order.promoCode));
-    await db.insert(payments).values({ orderId, gateway: order.paymentGateway!, gatewayTransactionId: wh.paymentId, amount: order.totalAmount!, status: 'paid', raw: body });
     // Fire confirmation + admin-alert emails (idempotent; marks emails_sent_at).
     sendOrderEmailsForOrder(orderId).catch((e) => console.error('[webhook] email send failed:', e));
   } else {
