@@ -16,7 +16,7 @@ export default async function AccountPage() {
     <div>
       <h1 className="text-2xl font-bold">Your account</h1>
       <p className="text-slate-500 text-sm">Signed in as {s.user.email} ({s.user.role}).</p>
-      {s.user.role === 'ADMIN' && <p className="mt-2"><Link href="/admin" className="text-amber-400 underline">Open admin dashboard →</Link></p>}
+      {['ADMIN', 'MANAGER'].includes(s.user.role) && <p className="mt-2"><Link href="/admin" className="text-amber-400 underline">Open admin dashboard →</Link></p>}
       <h2 className="font-bold mt-8 mb-3">Order history</h2>
       {rows.length === 0 ? (
         <div className="card text-center py-10 text-slate-500">No orders yet. <Link href="/shop" className="text-slate-900 underline">Start shopping</Link></div>

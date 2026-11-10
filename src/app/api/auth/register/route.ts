@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     .values({ email: email.toLowerCase(), passwordHash: await hashPassword(password), fullName, dob, role: 'CUSTOMER' })
     .returning({ id: users.id, email: users.email, role: users.role, fullName: users.fullName });
   const s = await getSession();
-  s.user = { id: u.id, email: u.email, role: u.role as 'CUSTOMER' | 'ADMIN', fullName: u.fullName ?? undefined };
+  s.user = { id: u.id, email: u.email, role: u.role as 'CUSTOMER' | 'ADMIN' | 'MANAGER' | 'CASHIER', fullName: u.fullName ?? undefined };
   await s.save();
   return NextResponse.json({ user: s.user });
 }

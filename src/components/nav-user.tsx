@@ -8,15 +8,16 @@ type User = { id: number; email: string; role: string; fullName?: string };
 export function StoreNavUser({ user }: { user?: User }) {
   useStore();
   if (user) {
-    const isAdmin = user.role === 'ADMIN';
-    const accountHref = isAdmin ? '/admin' : '/account';
+    const isStaff = ['ADMIN', 'MANAGER', 'CASHIER'].includes(user.role);
+    const isAdmin = isStaff;
+    const accountHref = user.role === 'CASHIER' ? '/admin/pos' : isAdmin ? '/admin' : '/account';
     return (
       <div className="flex items-center gap-2 text-sm">
         <div className="hidden sm:flex items-center gap-3">
           <Link href={accountHref} className={isAdmin
             ? 'rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-black text-slate-900 hover:bg-amber-300 transition'
             : 'text-[#64B5F6] hover:text-[#4FA3E8] font-medium transition'}>
-            {isAdmin ? '🛠 Admin' : (user.fullName || user.email)}
+            {user.role === 'CASHIER' ? '🛒 Till' : isAdmin ? '🛠 Admin' : (user.fullName || user.email)}
           </Link>
           <LogoutButton />
         </div>

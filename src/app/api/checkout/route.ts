@@ -7,6 +7,7 @@ import { getSession } from '@/lib/session';
 import { resolveCart, totals } from '@/lib/cart';
 import { isOfAge } from '@/lib/auth';
 import { createPaymentIntent } from '@/lib/payments';
+import { reserveForOrder, StockError } from '@/lib/stock';
 
 const addressSchema = z.object({
   line1: z.string().min(2), line2: z.string().optional().default(''),
@@ -92,6 +93,16 @@ export async function POST(req: Request) {
       unitPrice: i.unitPrice.toFixed(2),
     }))
   );
+
+  // Hold the stock for this checkout (all lines or none). Released automatically
+  // if the customer doesn't pay within the reservation window.
+  try {
+    await reserveForOrder(order.id, items.map((i) => ({ variantId: i.variantId, quantity: i.quantity, productName: i.productName })));
+  } catch (e) {
+    await db.update(orders).set({ status: 'cancelled', paymentStatus: 'failed', updatedAt: new Date() }).where(eq(orders.id, order.id));
+    if (e instanceof StockError) return NextResponse.json({ error: e.message }, { status: 409 });
+    throw e;
+  }
 
   const intent = await createPaymentIntent({ amount: total, orderId: order.id, email, secret: 'dev-secret' });
   await db.update(orders).set({ paymentIntentId: intent.id }).where(eq(orders.id, order.id));

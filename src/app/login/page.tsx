@@ -14,7 +14,8 @@ export default function LoginPage() {
     setLoading(false);
     if (!r.ok) { setErr(d.error || 'Login failed'); return; }
     // Admins go straight to the dashboard; customers go to their account.
-    const dest = d.user?.role === 'ADMIN' ? '/admin' : '/account';
+    const role = d.user?.role;
+      const dest = role === 'CASHIER' ? '/admin/pos' : (role === 'ADMIN' || role === 'MANAGER') ? '/admin' : '/account';
     router.push(dest); router.refresh();
   };
   return (

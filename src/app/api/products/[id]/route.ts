@@ -1,3 +1,4 @@
+import { audit } from '@/lib/audit';
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { products, productVariants, categories } from '@/db/schema';
@@ -8,6 +9,14 @@ export const dynamic = 'force-dynamic';
 const HEX_COLOR_RE = /#[0-9a-fA-F]{3,8}\b/g;
 function scrubDesc(d: unknown): string {
   return String(d || '').replace(HEX_COLOR_RE, '').replace(/\s{2,}/g, ' ').trim();
+}
+
+let ensuredCols = false;
+async function ensureColumns() {
+  if (ensuredCols) return;
+  const tryAdd = async (stmt: any) => { try { await db.execute(stmt); } catch (e: any) { if (!/already exists|duplicate column/i.test(e.message || '')) console.warn('[products] col add:', e.message); } };
+  await tryAdd(sql`ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS barcode TEXT`);
+  ensuredCols = true;
 }
 
 async function loadProduct(id: number) {
@@ -26,6 +35,7 @@ async function loadProduct(id: number) {
 }
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
+  await ensureColumns();
   const id = Number(params.id);
   if (isNaN(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const p = await loadProduct(id);
@@ -53,7 +63,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
       const override = v.priceOverride != null ? Number(v.priceOverride) : NaN;
       const unitPrice = !isNaN(override) && override > 0 ? override : base;
       return {
-        id: String(v.id), sku: v.sku, flavor: v.flavor, nicotineStrength: v.nicotineStrength,
+        id: String(v.id), sku: v.sku, barcode: (v as any).barcode || null, flavor: v.flavor, nicotineStrength: v.nicotineStrength,
         bottleSize: v.bottleSize, color: v.color,
         basePrice: Number(base.toFixed(2)),
         priceOverride: !isNaN(override) && override > 0 ? Number(override.toFixed(2)) : null,
@@ -70,6 +80,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   const { requireAdmin } = await import('@/lib/session');
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: 'Forbidden — sign in as admin' }, { status: 403 });
+  await ensureColumns();
   const id = Number(params.id);
   if (isNaN(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const body = await req.json().catch(() => ({}));
@@ -79,11 +90,31 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   if (body.name !== undefined && !String(body.name).trim()) {
     return NextResponse.json({ error: 'Name is required.' }, { status: 400 });
   }
+  // Price changes are owner-only. Compared against stored values, so saving an unchanged product is fine for managers.
+  const priceRows: any[] = await db.execute(sql`SELECT id, price_override FROM product_variants WHERE product_id = ${id}`);
+  const priceChanged =
+    (body.basePrice !== undefined && Number(body.basePrice).toFixed(2) !== Number(existing.basePrice).toFixed(2)) ||
+    (Array.isArray(body.variants) && body.variants.some((v: any) => {
+      if (v.priceOverride === undefined) return false;
+      const cur = priceRows.find((r) => Number(r.id) === Number(v.id));
+      const next = v.priceOverride == null || v.priceOverride === '' ? null : Number(v.priceOverride);
+      const prev = cur?.price_override == null ? null : Number(cur.price_override);
+      return next !== prev;
+    }));
+  if (priceChanged && admin.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Only the owner can change prices.', code: 'OWNER_ONLY' }, { status: 403 });
+  }
   if (body.basePrice !== undefined) {
     const bp = Number(body.basePrice);
     if (isNaN(bp) || bp <= 0) return NextResponse.json({ error: 'Base price must be greater than £0.' }, { status: 400 });
   }
 
+  if (priceChanged) {
+    await audit(admin, 'price.change', 'product', id, {
+      from: Number(existing.basePrice), to: body.basePrice !== undefined ? Number(body.basePrice) : undefined,
+      variantOverrides: Array.isArray(body.variants) ? body.variants.filter((v: any) => v.priceOverride !== undefined).map((v: any) => ({ id: v.id, priceOverride: v.priceOverride })) : undefined,
+    });
+  }
   const patch: Record<string, any> = {};
   if (body.name !== undefined) patch.name = String(body.name).trim();
   if (body.brand !== undefined) patch.brand = body.brand;
@@ -101,6 +132,23 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   }
 
   const variants = Array.isArray(body.variants) ? body.variants : [];
+
+  // Barcodes must be unique across all variants (scanner lookup depends on it).
+  const incomingCodes: { code: string; id: number | null }[] = variants
+    .filter((v: any) => !v._delete && typeof v.barcode === 'string' && v.barcode.trim())
+    .map((v: any) => ({ code: v.barcode.trim() as string, id: v.id ? Number(v.id) : null }));
+  const seen = new Set<string>();
+  for (const c of incomingCodes) {
+    if (seen.has(c.code)) return NextResponse.json({ error: `Barcode ${c.code} is used twice in this product.` }, { status: 409 });
+    seen.add(c.code);
+  }
+  if (incomingCodes.length) {
+    const clash = await db.execute(sql`SELECT id, barcode, product_id FROM product_variants WHERE barcode = ANY(${incomingCodes.map((c) => c.code)})`);
+    const rows = (clash as any).rows ?? clash;
+    const conflict = (rows as any[]).find((r) => !incomingCodes.some((c) => c.code === r.barcode && c.id === Number(r.id)));
+    if (conflict) return NextResponse.json({ error: `Barcode ${conflict.barcode} already belongs to another variant (product #${conflict.product_id}).` }, { status: 409 });
+  }
+
   for (const v of variants) {
     // Drop brand-new rows that were immediately marked _delete — they never
     // existed on the server so there's nothing to deactivate.
@@ -114,6 +162,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       nicotineStrength: v.nicotineStrength ?? '0mg',
       bottleSize: v.bottleSize ?? '10ml',
       color: v.color ?? null,
+      barcode: typeof v.barcode === 'string' && v.barcode.trim() ? v.barcode.trim() : null,
       priceOverride: v.priceOverride != null && v.priceOverride !== '' && Number(v.priceOverride) > 0 ? Number(v.priceOverride).toFixed(2) : null,
       stockQuantity: Number(v.stockQuantity ?? 0),
       lowStockThreshold: Number(v.lowStockThreshold ?? 5),
@@ -135,9 +184,10 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 }
 
 export async function DELETE(_: Request, { params }: { params: { id: string } }) {
-  const { requireAdmin } = await import('@/lib/session');
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: 'Forbidden — sign in as admin' }, { status: 403 });
+  const { requireOwner } = await import('@/lib/session');
+  const admin = await requireOwner();
+  if (!admin) return NextResponse.json({ error: 'Forbidden — only the owner can delete products' }, { status: 403 });
+  await audit(admin, 'product.delete', 'product', params.id, {});
   const id = Number(params.id);
   if (isNaN(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const existing = await loadProduct(id);

@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { categories } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { requireAdmin } from '@/lib/session';
+import { requireAdmin, requireOwner } from '@/lib/session';
+import { audit } from '@/lib/audit';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -42,8 +43,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 }
 
 export async function DELETE(_: Request, { params }: { params: { id: string } }) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const admin = await requireOwner();
+  if (!admin) return NextResponse.json({ error: 'Forbidden — only the owner can delete categories' }, { status: 403 });
+  await audit(admin, 'category.delete', 'category', params.id, {});
   const id = Number(params.id);
   if (isNaN(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   // Null products.categoryId instead of deleting with cascade (safer).

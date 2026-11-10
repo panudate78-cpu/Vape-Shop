@@ -31,7 +31,7 @@ export async function GET(req: Request) {
       v_id: productVariants.id, v_sku: productVariants.sku, v_flavor: productVariants.flavor,
       v_nicotineStrength: productVariants.nicotineStrength, v_bottleSize: productVariants.bottleSize,
       v_color: productVariants.color, v_priceOverride: productVariants.priceOverride,
-      v_stockQuantity: productVariants.stockQuantity, v_isActive: productVariants.isActive,
+      v_stockQuantity: productVariants.stockQuantity, v_reserved: productVariants.reservedQuantity, v_isActive: productVariants.isActive,
     })
     .from(products)
     .leftJoin(categories, eq(products.categoryId, categories.id))
@@ -76,7 +76,7 @@ export async function GET(req: Request) {
         priceOverride: !isNaN(override) && override > 0 ? Number(override.toFixed(2)) : null,
         price: Number(unitPrice.toFixed(2)),
         unitPrice: Number(unitPrice.toFixed(2)),
-        stockQuantity: r.v_stockQuantity ?? 0,
+        stockQuantity: Math.max(0, (r.v_stockQuantity ?? 0) - (r.v_reserved ?? 0)), // available, not on hand
       });
     }
   }
