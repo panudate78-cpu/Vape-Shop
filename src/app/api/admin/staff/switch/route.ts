@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/session';
+import { getSession, requireStaff } from '@/lib/session';
 import { staffByPin, pinLocked, recordPinFailure, clearPinFailures, PIN_RE, ROLE_LABEL } from '@/lib/staff';
 import { audit } from '@/lib/audit';
 import { z } from 'zod';
@@ -11,6 +11,9 @@ export const dynamic = 'force-dynamic';
 const schema = z.object({ pin: z.string(), registerId: z.string().max(40).optional() });
 
 export async function POST(req: Request) {
+  // Only someone already signed in at the till can switch. Customers and signed-out visitors get nothing,
+  // and their guesses don't count against the staff PIN lockout.
+  if (!(await requireStaff())) return NextResponse.json({ error: 'Staff sign-in required.' }, { status: 403 });
   const parsed = schema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success || !PIN_RE.test(parsed.data.pin)) {
     return NextResponse.json({ error: 'Enter your 4–6 digit PIN.' }, { status: 400 });
