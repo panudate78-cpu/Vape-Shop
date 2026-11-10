@@ -49,9 +49,15 @@ export default function StockPage() {
 
   const say = (kind: 'ok' | 'err', text: string) => { setMsg({ kind, text }); setTimeout(() => setMsg((m) => (m?.text === text ? null : m)), 5000); };
 
+  const [reportError, setReportError] = useState<string | null>(null);
   const loadReport = useCallback(async () => {
-    const r = await api<Report>('/api/admin/stock');
-    if (r.ok) setReport(r.data as Report); else say('err', r.data.error || 'Could not load stock report');
+    try {
+      const r = await api<Report>('/api/admin/stock');
+      if (r.ok) { setReport(r.data as Report); setReportError(null); }
+      else setReportError(r.data.error || `Could not load the stock report (HTTP ${r.status}).`);
+    } catch {
+      setReportError('Could not reach the server to load the stock report.');
+    }
   }, []);
   const loadSuppliers = useCallback(async () => {
     const r = await api<{ suppliers: Supplier[] }>('/api/admin/stock/suppliers');
@@ -74,7 +80,9 @@ export default function StockPage() {
       </div>
       {msg && <div className={`rounded-xl px-4 py-2 text-sm font-bold ${msg.kind === 'ok' ? 'bg-emerald-900/40 text-emerald-200 border border-emerald-500/40' : 'bg-red-900/40 text-red-300 border border-red-500/40'}`}>{msg.text}</div>}
 
-      {tab === 'Overview' && <Overview report={report} suppliers={suppliers} onChanged={refresh} say={say} />}
+      {tab === 'Overview' && (reportError && !report
+        ? <div className="rounded-xl bg-red-900/40 px-4 py-3 text-sm text-red-200">{reportError} <button className="ml-2 font-bold underline" onClick={refresh}>Try again</button></div>
+        : <Overview report={report} suppliers={suppliers} onChanged={refresh} say={say} />)}
       {tab === 'Adjust' && <Adjust rows={report?.rows || []} say={say} onChanged={refresh} />}
       {tab === 'Movements' && <Movements rows={report?.rows || []} />}
       {tab === 'Stocktake' && <Stocktakes say={say} onChanged={refresh} />}

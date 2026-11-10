@@ -115,6 +115,15 @@ export const orders = pgTable('orders', {
   cashTendered: numeric('cash_tendered', { precision: 10, scale: 2 }),
   changeGiven: numeric('change_given', { precision: 10, scale: 2 }),
   receiptEmailedTo: text('receipt_emailed_to'),
+  // Fulfilment is tracked separately from payment (paymentStatus above).
+  fulfilmentStatus: text('fulfilment_status').notNull().default('unfulfilled'), // unfulfilled|processing|ready|shipped|delivered|collected|cancelled
+  refundedAmount: numeric('refunded_amount', { precision: 10, scale: 2 }).notNull().default('0'),
+  readyAt: timestamp('ready_at'),
+  shippedAt: timestamp('shipped_at'),
+  deliveredAt: timestamp('delivered_at'),
+  collectedAt: timestamp('collected_at'),
+  collectedBy: text('collected_by'),       // name of the person who collected (handover)
+  idChecked: boolean('id_checked'),        // photo ID checked at handover (collect orders)
   // NOTE: emails_sent_at column is added lazily via ALTER TABLE on first use (see order-emails.ts).
   // so first deploy after adding email features doesn't require a manual migration.
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -299,4 +308,54 @@ export const auditLog = pgTable('audit_log', {
   entity: text('entity'),
   entityId: text('entity_id'),
   detail: jsonb('detail'),
+});
+
+// ---- order history, refunds and notifications (see lib/order-lifecycle.ts) ----
+export const orderEvents = pgTable('order_events', {
+  id: serial('id').primaryKey(),
+  orderId: integer('order_id').notNull(),
+  at: timestamp('at').defaultNow().notNull(),
+  kind: text('kind').notNull(),
+  actor: text('actor'),
+  detail: jsonb('detail'),
+});
+
+export const orderRefunds = pgTable('order_refunds', {
+  id: serial('id').primaryKey(),
+  orderId: integer('order_id').notNull(),
+  refundKey: text('refund_key').notNull().unique(),
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  reasonCode: text('reason_code').notNull(),
+  reasonNote: text('reason_note'),
+  resolution: text('resolution').notNull().default('refund'), // refund | exchange
+  replacementOrderId: integer('replacement_order_id'),
+  method: text('method').notNull(),                            // original | cash | card | manual
+  includeShipping: boolean('include_shipping').notNull().default(false),
+  createdBy: text('created_by'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const orderRefundLines = pgTable('order_refund_lines', {
+  id: serial('id').primaryKey(),
+  refundId: integer('refund_id').notNull(),
+  orderItemId: integer('order_item_id').notNull(),
+  variantId: integer('variant_id'),
+  quantity: integer('quantity').notNull(),
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  restock: boolean('restock').notNull().default(true),
+});
+
+export const notifications = pgTable('notifications', {
+  id: serial('id').primaryKey(),
+  orderId: integer('order_id').notNull(),
+  kind: text('kind').notNull(),        // order_confirmation | admin_new_order | collection_ready
+  recipient: text('recipient').notNull(),
+  dedupeKey: text('dedupe_key').notNull().unique(),
+  subject: text('subject'),
+  status: text('status').notNull().default('pending'), // pending | sending | sent | failed
+  attempts: integer('attempts').notNull().default(0),
+  lastError: text('last_error'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  sentAt: timestamp('sent_at'),
 });
