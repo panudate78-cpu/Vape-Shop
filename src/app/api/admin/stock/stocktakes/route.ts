@@ -5,6 +5,7 @@ import { and, desc, eq, isNull, or, sql } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/session';
 import { applyStockChange, StockError, rowsOf } from '@/lib/stock';
 import { z } from 'zod';
+import { audit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -121,6 +122,7 @@ export async function POST(req: Request) {
       await tx.update(stocktakes).set({ status: 'completed', completedBy: a.email, completedAt: new Date() }).where(eq(stocktakes.id, st.id));
       return variance;
     });
+    await audit(a, 'stocktake.complete', 'stocktake', st.id, { name: st.name, kind: st.kind, zeroUnscanned: body.zeroUnscanned, adjusted: result.filter((r) => r.delta !== 0).length, netUnits: result.reduce((t, r) => t + r.delta, 0) });
     return NextResponse.json({ ok: true, variance: result, adjusted: result.filter((r) => r.delta !== 0).length });
   } catch (e) {
     if (e instanceof StockError) return NextResponse.json({ error: e.message }, { status: 409 });

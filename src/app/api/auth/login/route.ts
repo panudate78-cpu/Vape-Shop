@@ -17,8 +17,9 @@ export async function POST(req: Request) {
   if (!u) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
   const ok = await verifyPassword(password, u.passwordHash);
   if (!ok) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+  if (u.active === false) return NextResponse.json({ error: 'This account has been disabled. Ask the owner.' }, { status: 403 });
   const s = await getSession();
-  s.user = { id: u.id, email: u.email, role: u.role as 'CUSTOMER' | 'ADMIN', fullName: u.fullName ?? undefined };
+  s.user = { id: u.id, email: u.email, role: u.role as 'CUSTOMER' | 'ADMIN' | 'MANAGER' | 'CASHIER', fullName: u.fullName ?? undefined };
   await s.save();
   return NextResponse.json({ user: s.user });
 }

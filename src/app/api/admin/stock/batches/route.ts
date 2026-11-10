@@ -5,6 +5,7 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/session';
 import { applyStockChange, StockError } from '@/lib/stock';
 import { z } from 'zod';
+import { audit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +68,7 @@ export async function POST(req: Request) {
       orderId: orders.id, createdAt: orders.createdAt, source: orders.source, guestEmail: orders.guestEmail, userEmail: users.email,
     }).from(orders).leftJoin(users, eq(users.id, orders.userId)).where(inArray(orders.id, orderIds)) : [];
 
+    await audit(a, 'batch.recall', 'batch', result.id, { batchCode: result.batchCode, note: p.data.note, affectedOrders: affected.length });
     return NextResponse.json({
       ok: true, batchCode: result.batchCode,
       unitsSoldFromBatch: moves.reduce((s, m) => s - m.delta, 0),

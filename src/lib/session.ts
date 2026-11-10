@@ -1,10 +1,11 @@
 import { getIronSession, type SessionOptions } from 'iron-session';
 import { cookies } from 'next/headers';
 
+// CUSTOMER = shopper. Staff: ADMIN = owner, MANAGER, CASHIER (see lib/staff.ts).
 export type SessionUser = {
   id: number;
   email: string;
-  role: 'CUSTOMER' | 'ADMIN';
+  role: 'CUSTOMER' | 'ADMIN' | 'MANAGER' | 'CASHIER';
   fullName?: string;
 };
 export type CartLine = { variantId: number; quantity: number };
@@ -31,8 +32,23 @@ export async function requireUser() {
   return s.user;
 }
 
+// Back office (owner + manager).
 export async function requireAdmin() {
   const u = await requireUser();
+  if (!u || (u.role !== 'ADMIN' && u.role !== 'MANAGER')) return null;
+  return u;
+}
+
+// Owner only.
+export async function requireOwner() {
+  const u = await requireUser();
   if (!u || u.role !== 'ADMIN') return null;
+  return u;
+}
+
+// Till: any staff account (owner, manager or cashier).
+export async function requireStaff() {
+  const u = await requireUser();
+  if (!u || (u.role !== 'ADMIN' && u.role !== 'MANAGER' && u.role !== 'CASHIER')) return null;
   return u;
 }

@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { orders, orderItems, productVariants, products, categories, payments } from "@/db/schema";
 import { eq, inArray, sql, and, gte } from "drizzle-orm";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff } from "@/lib/session";
+import { can, authorise, actorName } from "@/lib/staff";
+import { audit } from "@/lib/audit";
+import { openShift } from "@/lib/cash";
 import { ensurePosSchema } from "@/lib/pos-schema";
 import { applyStockChange, releaseExpiredReservations, StockError } from "@/lib/stock";
 import { z } from "zod";
@@ -14,6 +17,13 @@ export const dynamic = "force-dynamic";
 // till user is ADMIN, so the staff tier only applies once a lower role exists.
 const MANAGER_CAP = Number(process.env.POS_MANAGER_CAP_PCT || 100);
 const STAFF_CAP = Number(process.env.POS_STAFF_CAP_PCT || 15);
+const capFor = (role: string) => (can(role, "discount.over_cap") ? MANAGER_CAP : STAFF_CAP);
+
+// Lock the open shift for the duration of a sale so a cash-up cannot close it mid-sale.
+async function lockOpenShift(tx: any, shiftId: number) {
+  const rows: any = await tx.execute(sql`SELECT id FROM cash_shifts WHERE id = ${shiftId} AND status = 'open' FOR SHARE`);
+  if (!rows.length) throw new Error("NO_SHIFT");
+}
 
 const lineSchema = z.object({
   variantId: z.number().int().positive(),
@@ -33,6 +43,8 @@ const bodySchema = z.object({
   parentOrderId: z.number().int().positive().optional(),   // return / exchange against an earlier sale
   refundReason: z.string().max(200).optional(),
   idempotencyKey: z.string().min(8).max(64).optional(),
+  registerId: z.string().trim().min(1).max(40).optional(),   // which till rang the sale
+  approverPin: z.string().regex(/^\d{4,6}$/).optional(),   // manager/owner PIN for an override the cashier cannot authorise
 });
 
 const toC = (n: number) => Math.round(n * 100);
@@ -45,7 +57,7 @@ function variantLabel(v: { flavor: string | null; nicotineStrength: string | nul
 export async function GET(req: Request) {
   // POS product picker: active variants in a searchable shape.
   // ?barcode=... returns a single exact barcode match (used by the scanner).
-  const a = await requireAdmin();
+  const a = await requireStaff();
   if (!a) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   await ensurePosSchema();
 
@@ -101,7 +113,7 @@ export async function GET(req: Request) {
   }
 
   return NextResponse.json({
-    discountCap: a.role === "ADMIN" ? MANAGER_CAP : STAFF_CAP,
+    discountCap: capFor(a.role),
     items: rows
       .filter((r) => r.isActive && r.productActive !== false && r.stock - r.reserved > 0)
       .map(shape),
@@ -109,7 +121,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const a = await requireAdmin();
+  const a = await requireStaff();
   if (!a) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   await ensurePosSchema();
   await releaseExpiredReservations().catch(() => {});
@@ -118,7 +130,10 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Invalid body", issues: parsed.error.flatten() }, { status: 400 });
   const body = parsed.data;
   const isReturn = !!body.parentOrderId;
-  const cap = a.role === "ADMIN" ? MANAGER_CAP : STAFF_CAP;
+  const cap = capFor(a.role);
+  const register = (body.registerId || "Till 1").trim();
+  const shift = await openShift(register);
+  let overCap = false;
 
   // ---- Duplicate-click protection -------------------------------------------
   // With a client idempotency key: the same key always returns the same order.
@@ -134,6 +149,9 @@ export async function POST(req: Request) {
   if (isReturn) {
     if (!body.refundReason?.trim()) return NextResponse.json({ error: "A reason is required for a return." }, { status: 400 });
     if (body.paymentMethod === "split") return NextResponse.json({ error: "Refund to one method (cash or card)." }, { status: 400 });
+    const refundAuth = await authorise(a, "refund", body.approverPin);
+    if (!refundAuth.ok) return NextResponse.json({ error: refundAuth.error, code: refundAuth.code }, { status: refundAuth.status });
+    if (body.paymentMethod === "cash" && !shift) return NextResponse.json({ error: `Open ${register} with a float before paying cash out.`, code: "NO_SHIFT" }, { status: 409 });
     const [orig] = await db.select().from(orders).where(eq(orders.id, body.parentOrderId!)).limit(1);
     if (!orig) return NextResponse.json({ error: "Original sale not found" }, { status: 404 });
     if (orig.status === "cancelled") return NextResponse.json({ error: "Original sale was cancelled" }, { status: 409 });
@@ -165,8 +183,10 @@ export async function POST(req: Request) {
 
     const refund = fromC(refundC);
     const saleKey = intentId ? body.idempotencyKey! : crypto.randomUUID();
+    const approvedBy = refundAuth.approver.id !== a.id ? actorName(refundAuth.approver) : null;
     try {
       const ret = await db.transaction(async (tx) => {
+        if (shift && body.paymentMethod === "cash") await lockOpenShift(tx, shift.id);
         const [r] = await tx.insert(orders).values({
           userId: null, guestEmail: null, status: "refunded",
           subtotal: fromC(-refundC).toFixed(2), discount: "0.00", shippingCost: "0.00",
@@ -178,6 +198,7 @@ export async function POST(req: Request) {
           staffNote: body.staffNote || null,
           parentOrderId: orig.id, refundReason: body.refundReason!.trim(),
           dobVerified: true, complianceAccepted: true,
+          staffUserId: a.id, staffName: actorName(a), registerId: register, shiftId: shift?.id ?? null, approvedBy,
         } as any).returning();
         await tx.insert(orderItems).values(retLines.map((l) => ({ orderId: r.id, ...l, unitPrice: l.unitPrice.toFixed(2) })));
         for (const l of retLines) {
@@ -194,9 +215,15 @@ export async function POST(req: Request) {
         });
         return r;
       });
+      await audit(a, "refund.create", "order", ret.id, {
+        parentOrderId: orig.id, refund, method: body.paymentMethod, reason: body.refundReason!.trim(),
+        lines: retLines.map((l) => ({ sku: l.sku, quantity: -l.quantity, unitPrice: l.unitPrice })),
+        approvedBy: approvedBy ?? undefined, authorisedBy: refundAuth.approver.id,
+      }, register);
       return NextResponse.json({ ok: true, orderId: ret.id, total: -refund, refund, items: retLines.length, parentOrderId: orig.id });
     } catch (e) {
       if (e instanceof StockError) return NextResponse.json({ error: e.message }, { status: 409 });
+      if (e instanceof Error && e.message === "NO_SHIFT") return NextResponse.json({ error: `${register} was closed mid-refund. Reopen the till and try again.`, code: "NO_SHIFT" }, { status: 409 });
       throw e;
     }
   }
@@ -219,7 +246,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `${p?.name} — only ${Math.max(0, available)} available` }, { status: 409 });
     }
     const pct = it.lineDiscountPct ?? 0;
-    if (pct > cap) return NextResponse.json({ error: `Line discount ${pct}% exceeds your limit of ${cap}%` }, { status: 403 });
+    if (pct > cap) overCap = true;   // needs manager approval (checked below)
     const p = prodById.get(v.productId)!;
     const override = v.priceOverride != null ? Number(v.priceOverride) : NaN;
     const unitC = toC(!isNaN(override) && override > 0 ? override : Number(p.basePrice ?? 0));
@@ -240,8 +267,12 @@ export async function POST(req: Request) {
   const flatC = Math.min(toC(body.discount), afterLinesC - basketPctC);
   const totalDiscC = lineDiscC + basketPctC + flatC;
   const totalC = Math.max(0, grossC - totalDiscC);
-  if (grossC > 0 && (totalDiscC / grossC) * 100 > cap + 1e-9) {
-    return NextResponse.json({ error: `Total discount ${(totalDiscC / grossC * 100).toFixed(1)}% exceeds your limit of ${cap}% — ask a manager.` }, { status: 403 });
+  if (grossC > 0 && (totalDiscC / grossC) * 100 > cap + 1e-9) overCap = true;
+  let discountApprover: { id: number; name: string } | null = null;
+  if (overCap) {
+    const discAuth = await authorise(a, "discount.over_cap", body.approverPin);
+    if (!discAuth.ok) return NextResponse.json({ error: `Discount is above your ${cap}% limit. ${discAuth.error}`, code: discAuth.code }, { status: discAuth.status });
+    if (discAuth.approver.id !== a.id) discountApprover = { id: discAuth.approver.id, name: actorName(discAuth.approver) };
   }
 
   // Payment split
@@ -274,10 +305,14 @@ export async function POST(req: Request) {
     if (recent) return NextResponse.json({ ok: true, duplicate: true, orderId: recent.id, total: Number(recent.totalAmount) });
   }
 
+  if (cashPartC > 0 && !shift) {
+    return NextResponse.json({ error: `Open ${register} with a float before taking cash.`, code: "NO_SHIFT" }, { status: 409 });
+  }
   const saleKey = intentId ? body.idempotencyKey! : crypto.randomUUID();
   const primary = body.paymentMethod === "split" ? "split" : body.paymentMethod;
   try {
     const order = await db.transaction(async (tx) => {
+      if (shift && cashPartC > 0) await lockOpenShift(tx, shift.id);
       const [o] = await tx.insert(orders).values({
         userId: null,
         guestEmail: null,
@@ -298,6 +333,8 @@ export async function POST(req: Request) {
         changeGiven: changeC != null ? fromC(changeC).toFixed(2) : null,
         staffNote: body.staffNote || null,
         dobVerified: true, // assume staff ID'd customer at the till (Challenge 25)
+        staffUserId: a.id, staffName: actorName(a), registerId: register, shiftId: shift?.id ?? null,
+        approvedBy: discountApprover?.name ?? null,
         complianceAccepted: true,
       } as any).returning();
 
@@ -328,9 +365,16 @@ export async function POST(req: Request) {
       return o;
     });
 
+    if (totalDiscC > 0) {
+      await audit(a, overCap ? "discount.override" : "discount.apply", "order", order.id, {
+        discount: fromC(totalDiscC), basketPct: body.discountPct, lineDiscounts: body.items.filter((i) => (i.lineDiscountPct ?? 0) > 0).map((i) => ({ variantId: i.variantId, pct: i.lineDiscountPct })),
+        approvedBy: discountApprover?.name ?? null, total: fromC(totalC),
+      }, register);
+    }
     return NextResponse.json({
       ok: true,
       orderId: order.id,
+      staff: actorName(a), register,
       total: fromC(totalC),
       subtotal: fromC(grossC),
       discount: fromC(totalDiscC),
@@ -339,6 +383,7 @@ export async function POST(req: Request) {
     });
   } catch (e) {
     if (e instanceof StockError) return NextResponse.json({ error: e.message }, { status: 409 });
+    if (e instanceof Error && e.message === "NO_SHIFT") return NextResponse.json({ error: `${register} was closed mid-sale. Reopen the till and try again.`, code: "NO_SHIFT" }, { status: 409 });
     throw e;
   }
 }

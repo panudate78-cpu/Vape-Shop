@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { productVariants, products, categories } from "@/db/schema";
 import { eq, ilike, sql } from "drizzle-orm";
-import { requireAdmin } from "@/lib/session";
+import { requireOwner } from "@/lib/session";
+import { audit } from "@/lib/audit";
 import { ensurePosSchema } from "@/lib/pos-schema";
 
 function parseCsv(text: string): Record<string, string>[] {
@@ -72,8 +73,9 @@ function gbpOrNull(v: string | undefined): string | null {
 }
 
 export async function POST(req: Request) {
-  const s = await requireAdmin();
-  if (!s) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const s = await requireOwner();
+  if (!s) return NextResponse.json({ error: "Forbidden — only the owner can import" }, { status: 403 });
+  await audit(s, "import.run", "products", null, {});
   await ensurePosSchema(); // adds product_variants.barcode if missing
   try {
     await ensureCostColumn();

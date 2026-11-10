@@ -5,12 +5,29 @@ import { eq, sql } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/session';
 import { changeStock, StockError, releaseExpiredReservations, rowsOf } from '@/lib/stock';
 import { z } from 'zod';
+import { audit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
 const REORDER_HORIZON_DAYS = 14; // stock to cover this many days beyond lead time
 
 // GET → stock report: valuation, margin, low stock, reorder suggestions, expiring batches.
+// Margin, gross profit and stock valuation are owner-only. Supplier unit costs stay visible to managers.
+const PROFIT_TOTALS = ['valueCost', 'potentialMarginPct', 'grossMargin30', 'grossMarginPct30'];
+const PROFIT_ROW = ['marginPct', 'valueCost'];
+function profitView(role: string, payload: any) {
+  if (role === 'ADMIN') return payload;
+  const strip = (o: any, keys: string[]) => Object.fromEntries(Object.entries(o).filter(([k]) => !keys.includes(k)));
+  const stripRows = (list: any[]) => list.map((r) => strip(r, PROFIT_ROW));
+  return {
+    ...payload,
+    totals: strip(payload.totals, PROFIT_TOTALS),
+    rows: stripRows(payload.rows),
+    lowStock: stripRows(payload.lowStock),
+    reorder: stripRows(payload.reorder),
+  };
+}
+
 export async function GET() {
   const a = await requireAdmin();
   if (!a) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -80,7 +97,7 @@ export async function GET() {
   const soldRev = [...soldBy.values()].reduce((x, y) => x + y.rev, 0);
   const soldCost = rows.reduce((x, r) => x + (soldBy.get(r.variantId)?.qty || 0) * r.cost, 0);
 
-  return NextResponse.json({
+  return NextResponse.json(profitView(a.role, {
     totals: {
       units, valueCost: Math.round(valueCost * 100) / 100, valueRetail: Math.round(valueRetail * 100) / 100,
       potentialMarginPct: valueRetail > 0 ? Math.round(((valueRetail - valueCost) / valueRetail) * 1000) / 10 : null,
@@ -92,7 +109,7 @@ export async function GET() {
     lowStock: rows.filter((r) => r.lowStock).sort((x, y) => x.available - y.available),
     reorder: rows.filter((r) => r.suggestedReorder > 0).sort((x, y) => y.suggestedReorder - x.suggestedReorder),
     expiring: expiring.map((b: any) => ({ batchId: b.id, variantId: Number(b.vid), sku: b.sku, product: b.product_name, batchCode: b.batch_code, expiryDate: b.expiry_date, qtyRemaining: Number(b.qty_remaining) })),
-  });
+  }));
 }
 
 const adjustSchema = z.object({
@@ -126,6 +143,7 @@ export async function POST(req: Request) {
       variantId: d.variantId, delta, reason: d.reason, actor: a.email,
       note: d.note.trim() || null, batchCode: d.batchCode || null, expiryDate: d.expiryDate || null, unitCost: d.unitCost ?? null,
     });
+    await audit(a, 'stock.adjust', 'variant', d.variantId, { reason: d.reason, delta, note: d.note.trim() || null, batchCode: d.batchCode || null, expiryDate: d.expiryDate || null });
     return NextResponse.json({ ok: true, ...r });
   } catch (e) {
     if (e instanceof StockError) return NextResponse.json({ error: e.message }, { status: 409 });

@@ -1,15 +1,20 @@
 import { pgTable, serial, text, integer, numeric, boolean, timestamp, jsonb, doublePrecision, uniqueIndex } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   email: text('email').notNull().unique(),
   passwordHash: text('password_hash').notNull(),
-  role: text('role').notNull().default('CUSTOMER'), // CUSTOMER | ADMIN
+  role: text('role').notNull().default('CUSTOMER'), // CUSTOMER | ADMIN (owner) | MANAGER | CASHIER
   dob: text('dob'),
   fullName: text('full_name'),
   phone: text('phone'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+  active: boolean('active').notNull().default(true),   // inactive staff cannot log in or PIN-switch
+  pinLookup: text('pin_lookup'),                         // HMAC of the till PIN (never the PIN itself)
+}, (t) => ({
+  pinLookupUq: uniqueIndex('users_pin_lookup_uq').on(t.pinLookup).where(sql`${t.pinLookup} is not null`),
+}));
 
 export const categories = pgTable('categories', {
   id: serial('id').primaryKey(),
@@ -99,7 +104,12 @@ export const orders = pgTable('orders', {
   source: text('source').notNull().default('online'), // online | pos (in-store sale at the till)
   paymentMethod: text('payment_method'), // cash | card | split:... | recorded_card (for POS); null for online
   staffNote: text('staff_note'),
-  parentOrderId: integer('parent_order_id'), // for returns/exchanges: links back to the original sale
+  parentOrderId: integer('parent_order_id'),
+  staffUserId: integer('staff_user_id'),   // who rang the sale / refund
+  staffName: text('staff_name'),
+  registerId: text('register_id'),         // which till
+  shiftId: integer('shift_id'),            // cash shift open on that register at the time
+  approvedBy: text('approved_by'),         // manager who approved an override (PIN), if any // for returns/exchanges: links back to the original sale
   refundReason: text('refund_reason'),
   paymentBreakdown: jsonb('payment_breakdown').$type<{ method: string; amount: number }[]>(), // split payments
   cashTendered: numeric('cash_tendered', { precision: 10, scale: 2 }),
@@ -246,3 +256,47 @@ export const stocktakeCounts = pgTable('stocktake_counts', {
 }, (t) => ({
   stocktakeVariantUq: uniqueIndex('stocktake_counts_stocktake_variant_uq').on(t.stocktakeId, t.variantId),
 }));
+
+// ---------------- Staff accountability & cash ----------------
+export const cashShifts = pgTable('cash_shifts', {
+  id: serial('id').primaryKey(),
+  register: text('register').notNull(),
+  status: text('status').notNull().default('open'), // open | closed
+  openedByUserId: integer('opened_by_user_id'),
+  openedByName: text('opened_by_name'),
+  openedAt: timestamp('opened_at').defaultNow().notNull(),
+  openingFloat: numeric('opening_float', { precision: 10, scale: 2 }).notNull().default('0'),
+  closedByUserId: integer('closed_by_user_id'),
+  closedByName: text('closed_by_name'),
+  closedAt: timestamp('closed_at'),
+  expectedCash: numeric('expected_cash', { precision: 10, scale: 2 }),
+  countedCash: numeric('counted_cash', { precision: 10, scale: 2 }),
+  variance: numeric('variance', { precision: 10, scale: 2 }), // counted - expected
+  discrepancyNote: text('discrepancy_note'),
+}, (t) => ({
+  oneOpenPerRegister: uniqueIndex('cash_shifts_one_open').on(t.register).where(sql`${t.status} = 'open'`),
+}));
+
+export const cashMovements = pgTable('cash_movements', {
+  id: serial('id').primaryKey(),
+  shiftId: integer('shift_id').notNull(),
+  kind: text('kind').notNull(), // paid_in | paid_out
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  reason: text('reason').notNull(),
+  staffUserId: integer('staff_user_id'),
+  staffName: text('staff_name'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const auditLog = pgTable('audit_log', {
+  id: serial('id').primaryKey(),
+  at: timestamp('at').defaultNow().notNull(),
+  actorUserId: integer('actor_user_id'),
+  actorName: text('actor_name'),
+  actorRole: text('actor_role'),
+  registerId: text('register_id'),
+  action: text('action').notNull(),   // e.g. refund.create, discount.override, price.change, export.run
+  entity: text('entity'),
+  entityId: text('entity_id'),
+  detail: jsonb('detail'),
+});

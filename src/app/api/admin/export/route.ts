@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { productVariants, products, categories } from '@/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/session';
+import { audit } from '@/lib/audit';
 
 function csv(v: any) {
   const s = String(v ?? '');
@@ -13,6 +14,7 @@ function csv(v: any) {
 export async function GET() {
   const a = await requireAdmin();
   if (!a) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  await audit(a, 'export.run', 'export', null, { kind: 'csv' });
   try { await db.execute(sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price NUMERIC(10,2)`); } catch {}
 
   const rows = await db.select({

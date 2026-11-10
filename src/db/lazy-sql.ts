@@ -25,6 +25,28 @@ export const LAZY_SQL: string[] = [
      id SERIAL PRIMARY KEY, hold_code TEXT NOT NULL UNIQUE, customer_label TEXT,
      items JSONB NOT NULL, discount NUMERIC(10,2) DEFAULT 0, discount_pct NUMERIC(5,2) DEFAULT 0,
      note TEXT, held_by TEXT, created_at TIMESTAMP NOT NULL DEFAULT NOW(), resumed_at TIMESTAMP)`,
+  // ---- staff accounts, cash and audit ----
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS pin_lookup TEXT`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS users_pin_lookup_uq ON users (pin_lookup) WHERE pin_lookup IS NOT NULL`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS staff_user_id INTEGER`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS staff_name TEXT`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS register_id TEXT`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS shift_id INTEGER`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS approved_by TEXT`,
+  `CREATE TABLE IF NOT EXISTS cash_shifts (
+     id SERIAL PRIMARY KEY, register TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open',
+     opened_by_user_id INTEGER, opened_by_name TEXT, opened_at TIMESTAMP NOT NULL DEFAULT NOW(),
+     opening_float NUMERIC(10,2) NOT NULL DEFAULT 0, closed_by_user_id INTEGER, closed_by_name TEXT,
+     closed_at TIMESTAMP, expected_cash NUMERIC(10,2), counted_cash NUMERIC(10,2),
+     variance NUMERIC(10,2), discrepancy_note TEXT)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS cash_shifts_one_open ON cash_shifts (register) WHERE status = 'open'`,
+  `CREATE TABLE IF NOT EXISTS cash_movements (
+     id SERIAL PRIMARY KEY, shift_id INTEGER NOT NULL, kind TEXT NOT NULL, amount NUMERIC(10,2) NOT NULL,
+     reason TEXT NOT NULL, staff_user_id INTEGER, staff_name TEXT, created_at TIMESTAMP NOT NULL DEFAULT NOW())`,
+  `CREATE TABLE IF NOT EXISTS audit_log (
+     id SERIAL PRIMARY KEY, at TIMESTAMP NOT NULL DEFAULT NOW(), actor_user_id INTEGER, actor_name TEXT,
+     actor_role TEXT, register_id TEXT, action TEXT NOT NULL, entity TEXT, entity_id TEXT, detail JSONB)`,
   // ---- stock control ----
   // Upsert target for stocktake lines. Also created for tables that predate this constraint.
   `CREATE UNIQUE INDEX IF NOT EXISTS stocktake_counts_stocktake_variant_uq ON stocktake_counts (stocktake_id, variant_id)`,

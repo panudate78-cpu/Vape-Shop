@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { heldBaskets } from "@/db/schema";
 import { eq, isNull, desc } from "drizzle-orm";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff } from "@/lib/session";
 import { ensurePosSchema } from "@/lib/pos-schema";
 import { z } from "zod";
 
@@ -20,7 +20,7 @@ const itemSchema = z.object({
 // PATCH → { id, action: 'resume' } marks it resumed and returns its contents
 // DELETE?id= → discard a held basket
 export async function GET() {
-  const a = await requireAdmin();
+  const a = await requireStaff();
   if (!a) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   await ensurePosSchema();
   const rows = await db.select().from(heldBaskets).where(isNull(heldBaskets.resumedAt)).orderBy(desc(heldBaskets.createdAt)).limit(50);
@@ -28,7 +28,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const a = await requireAdmin();
+  const a = await requireStaff();
   if (!a) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   await ensurePosSchema();
   const parsed = z.object({
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  const a = await requireAdmin();
+  const a = await requireStaff();
   if (!a) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   await ensurePosSchema();
   const body = await req.json().catch(() => ({}));
@@ -74,7 +74,7 @@ export async function PATCH(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const a = await requireAdmin();
+  const a = await requireStaff();
   if (!a) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   await ensurePosSchema();
   const id = Number(new URL(req.url).searchParams.get("id"));

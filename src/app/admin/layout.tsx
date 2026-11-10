@@ -4,6 +4,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 
+const STAFF = ["ADMIN", "MANAGER", "CASHIER"];
+const ROLE_LABEL: Record<string, string> = { ADMIN: "Owner", MANAGER: "Manager", CASHIER: "Cashier" };
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const router = useRouter();
@@ -13,19 +16,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     refreshUser().then(() => setChecked(true));
   }, []);
   useEffect(() => {
-    if (checked && (!user || user.role !== "ADMIN")) router.push("/login");
+    if (checked && (!user || !STAFF.includes(user.role))) router.push("/login");
   }, [checked, user]);
+  useEffect(() => {
+    // Cashiers have the till only.
+    if (checked && user?.role === "CASHIER" && !path.startsWith("/admin/pos")) router.replace("/admin/pos");
+  }, [checked, user, path]);
   if (!checked || !user) return <div className="p-10 text-center text-zinc-400">Checking admin access…</div>;
-  if (user.role !== "ADMIN") return <div className="p-10 text-center text-red-400">Forbidden — admins only.</div>;
+  if (!STAFF.includes(user.role)) return <div className="p-10 text-center text-red-400">Forbidden — staff only.</div>;
+  if (user.role === "CASHIER" && !path.startsWith("/admin/pos")) return <div className="p-10 text-center text-zinc-400">Opening the till…</div>;
+  const backOffice = user.role === "ADMIN" || user.role === "MANAGER";
+  const owner = user.role === "ADMIN";
+  const roleLabel = ROLE_LABEL[user.role] || user.role;
   const links = [
-    { href: "/admin", label: "📊 Overview" },
+    ...(backOffice ? [{ href: "/admin", label: "📊 Overview" }] : []),
     { href: "/admin/pos", label: "🛒 Till (POS)" },
-    { href: "/admin/orders", label: "📦 Orders" },
-    { href: "/admin/stock", label: "📦 Stock control" },
-    { href: "/admin/inventory", label: "📉 Inventory" },
-    { href: "/admin/products", label: "🧴 Products" },
-    { href: "/admin/categories", label: "🏷 Categories" },
-    { href: "/admin/import", label: "📥 CSV Import/Export" },
+    ...(backOffice ? [
+      { href: "/admin/orders", label: "📦 Orders" },
+      { href: "/admin/stock", label: "📦 Stock control" },
+      { href: "/admin/inventory", label: "📉 Inventory" },
+      { href: "/admin/products", label: "🧴 Products" },
+      { href: "/admin/categories", label: "🏷 Categories" },
+      { href: "/admin/cash", label: "💷 Cash & shifts" },
+      { href: "/admin/staff", label: owner ? "👥 Staff & audit" : "🧾 Audit log" },
+    ] : []),
+    ...(owner ? [{ href: "/admin/import", label: "📥 CSV Import/Export" }] : []),
     { href: "/shop", label: "🛍 View Store" },
   ];
   return (
@@ -33,7 +48,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="mx-auto max-w-7xl px-4 py-6">
       <div className="flex items-center gap-3">
         <h1 className="text-xl font-black text-white">Admin Dashboard</h1>
-        <span className="rounded-full bg-amber-400 px-2.5 py-0.5 text-[11px] font-black text-black">{user.email}</span>
+        <span className="rounded-full bg-amber-400 px-2.5 py-0.5 text-[11px] font-black text-black">{user.fullName || user.email} · {roleLabel}</span>
       </div>
       <nav className="mt-4 flex gap-2 overflow-x-auto">
         {links.map((l) => (

@@ -1,3 +1,4 @@
+import { audit } from '@/lib/audit';
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { products, productVariants, categories } from '@/db/schema';
@@ -89,11 +90,31 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   if (body.name !== undefined && !String(body.name).trim()) {
     return NextResponse.json({ error: 'Name is required.' }, { status: 400 });
   }
+  // Price changes are owner-only. Compared against stored values, so saving an unchanged product is fine for managers.
+  const priceRows: any[] = await db.execute(sql`SELECT id, price_override FROM product_variants WHERE product_id = ${id}`);
+  const priceChanged =
+    (body.basePrice !== undefined && Number(body.basePrice).toFixed(2) !== Number(existing.basePrice).toFixed(2)) ||
+    (Array.isArray(body.variants) && body.variants.some((v: any) => {
+      if (v.priceOverride === undefined) return false;
+      const cur = priceRows.find((r) => Number(r.id) === Number(v.id));
+      const next = v.priceOverride == null || v.priceOverride === '' ? null : Number(v.priceOverride);
+      const prev = cur?.price_override == null ? null : Number(cur.price_override);
+      return next !== prev;
+    }));
+  if (priceChanged && admin.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Only the owner can change prices.', code: 'OWNER_ONLY' }, { status: 403 });
+  }
   if (body.basePrice !== undefined) {
     const bp = Number(body.basePrice);
     if (isNaN(bp) || bp <= 0) return NextResponse.json({ error: 'Base price must be greater than £0.' }, { status: 400 });
   }
 
+  if (priceChanged) {
+    await audit(admin, 'price.change', 'product', id, {
+      from: Number(existing.basePrice), to: body.basePrice !== undefined ? Number(body.basePrice) : undefined,
+      variantOverrides: Array.isArray(body.variants) ? body.variants.filter((v: any) => v.priceOverride !== undefined).map((v: any) => ({ id: v.id, priceOverride: v.priceOverride })) : undefined,
+    });
+  }
   const patch: Record<string, any> = {};
   if (body.name !== undefined) patch.name = String(body.name).trim();
   if (body.brand !== undefined) patch.brand = body.brand;
@@ -163,9 +184,10 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 }
 
 export async function DELETE(_: Request, { params }: { params: { id: string } }) {
-  const { requireAdmin } = await import('@/lib/session');
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: 'Forbidden — sign in as admin' }, { status: 403 });
+  const { requireOwner } = await import('@/lib/session');
+  const admin = await requireOwner();
+  if (!admin) return NextResponse.json({ error: 'Forbidden — only the owner can delete products' }, { status: 403 });
+  await audit(admin, 'product.delete', 'product', params.id, {});
   const id = Number(params.id);
   if (isNaN(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const existing = await loadProduct(id);

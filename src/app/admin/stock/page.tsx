@@ -119,9 +119,9 @@ function Overview({ report, suppliers, onChanged, say }: { report: Report | null
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card label="Units on hand" value={t.units.toLocaleString()} />
-        <Card label="Stock value (cost)" value={gbp(t.valueCost)} />
-        <Card label="Stock value (retail)" value={gbp(t.valueRetail)} sub={t.potentialMarginPct != null ? `${t.potentialMarginPct}% potential margin` : undefined} />
-        <Card label="Gross margin, 30 days" value={gbp(t.grossMargin30)} sub={t.grossMarginPct30 != null ? `${t.grossMarginPct30}% of ${gbp(t.revenue30)} revenue` : undefined} />
+        {t.valueCost != null && <Card label="Stock value (cost)" value={gbp(t.valueCost)} />}
+        {t.valueCost != null && <Card label="Stock value (retail)" value={gbp(t.valueRetail)} sub={t.potentialMarginPct != null ? `${t.potentialMarginPct}% potential margin` : undefined} />}
+        {t.grossMargin30 != null && <Card label="Gross margin, 30 days" value={gbp(t.grossMargin30)} sub={t.grossMarginPct30 != null ? `${t.grossMarginPct30}% of ${gbp(t.revenue30)} revenue` : undefined} />}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -186,7 +186,7 @@ function Overview({ report, suppliers, onChanged, say }: { report: Report | null
                       className="input !py-1 !px-2 w-24 text-xs" />
                   </td>
                   <td className="p-2 text-right text-zinc-300">{r.marginPct != null ? `${r.marginPct}%` : '—'}</td>
-                  <td className="p-2 text-right text-zinc-300">{gbp(r.valueCost)}</td>
+                  <td className="p-2 text-right text-zinc-300">{r.valueCost != null ? gbp(r.valueCost) : '—'}</td>
                   <td className="p-2">
                     <select defaultValue={r.supplierId ?? ''} onChange={(e) => patchVariant(r.variantId, { supplierId: e.target.value ? Number(e.target.value) : null })} className="input !py-1 !px-2 text-xs max-w-[160px]">
                       <option value="">— none —</option>

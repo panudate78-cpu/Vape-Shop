@@ -30,7 +30,7 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
   const id = Number(params.id);
   const [order] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
   if (!order) return <div className="card text-center py-16">Order not found.</div>;
-  const owns = (order.userId && s.user?.id === order.userId) || s.user?.role === 'ADMIN' || (order.guestEmail);
+  const owns = (order.userId && s.user?.id === order.userId) || ['ADMIN','MANAGER'].includes(s.user?.role as string) || (order.guestEmail);
   if (!owns) return <div className="card text-center py-16">This order is not associated with your account.</div>;
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, id));
 

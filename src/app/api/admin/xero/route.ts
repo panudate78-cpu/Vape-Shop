@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/session';
 import { loadPaidOrders, toXero } from '@/lib/accounting/export';
+import { audit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
   const a = await requireAdmin();
   if (!a) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  await audit(a, 'export.run', 'export', null, { kind: 'xero', url: new URL(req.url).search });
   const url = new URL(req.url);
   const orders = await loadPaidOrders({
     from: url.searchParams.get('from'), to: url.searchParams.get('to'), source: url.searchParams.get('source'),

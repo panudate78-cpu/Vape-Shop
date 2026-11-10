@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { orders, orderItems, payments } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff } from "@/lib/session";
 import { ensurePosSchema } from "@/lib/pos-schema";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // Receipt / return-screen data for one order: lines, payments, parent sale
 // (if this is a return) and any returns already made against this sale.
 export async function GET(_: Request, { params }: { params: { id: string } }) {
-  const a = await requireAdmin();
+  const a = await requireStaff();
   if (!a) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   await ensurePosSchema();
   const id = Number(params.id);

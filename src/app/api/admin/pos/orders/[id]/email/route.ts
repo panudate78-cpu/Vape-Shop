@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { orders, orderItems } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff } from "@/lib/session";
 import { sendEmail } from "@/lib/email";
 import { ensurePosSchema } from "@/lib/pos-schema";
 import { z } from "zod";
@@ -13,7 +13,7 @@ const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&
 
 // POST { email } → emails a plain receipt for an in-store sale or return.
 export async function POST(req: Request, { params }: { params: { id: string } }) {
-  const a = await requireAdmin();
+  const a = await requireStaff();
   if (!a) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   await ensurePosSchema();
   const parsed = z.object({ email: z.string().email().max(200) }).safeParse(await req.json().catch(() => ({})));

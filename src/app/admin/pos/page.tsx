@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { gbp } from '@/lib/format';
+import { StaffBar, PinPad } from '@/components/till/staff-tools';
 
 type VarItem = {
   variantId: number; productId: number; sku: string; barcode: string | null;
@@ -21,6 +22,7 @@ type OrderView = {
 
 const FAV_KEY = 'vc100.pos.favs';
 const QUEUE_KEY = 'vc100.pos.queue';
+const REGISTER_KEY = 'vc100.pos.register';
 const CASH_QUICK = [5, 10, 20, 50];
 
 const newKey = () =>
@@ -64,6 +66,12 @@ export default function PosPage() {
 
   // ---- status --------------------------------------------------------------
   const [busy, setBusy] = useState(false);
+  const [register, setRegister] = useState('Till 1');   // this till's name, saved per browser
+  const [cashRequest, setCashRequest] = useState(0);
+  // Manager approval: asked when a cashier refunds or discounts above their cap.
+  const [approval, setApproval] = useState<{ message: string; resolve: (pin: string | null) => void } | null>(null);
+  useEffect(() => { try { const r = localStorage.getItem(REGISTER_KEY); if (r) setRegister(r); } catch { /* ignore */ } }, []);
+  const changeRegister = (r: string) => { setRegister(r); try { localStorage.setItem(REGISTER_KEY, r); } catch { /* ignore */ } };
   const inFlight = useRef(false);            // client double-click lock
   const idemKey = useRef<string>(newKey());  // one key per basket attempt
   const [online, setOnline] = useState(true);
@@ -223,15 +231,23 @@ export default function PosPage() {
     return base;
   };
 
-  const postSale = async (body: any) => {
+  const askApproval = (message: string) => new Promise<string | null>((resolve) => setApproval({ message, resolve }));
+  const sendSale = async (body: any) => {
     const res = await fetch('/api/admin/pos', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     const d = await res.json().catch(() => ({}));
     return { ok: res.ok, status: res.status, d };
   };
+  // One retry after a manager PIN. Only asked once per attempt, so a wrong PIN can't loop.
+  const postSale = async (body: any) => {
+    const first = await sendSale({ ...body, registerId: register });
+    if (first.ok || first.d?.code !== 'APPROVAL_REQUIRED') return first;
+    const pin = await askApproval(first.d.error || 'Manager approval needed.');
+    if (!pin) return { ok: false, status: 403, d: { error: 'Cancelled — no manager approval.' } };
+    return sendSale({ ...body, registerId: register, approverPin: pin });
+  };
 
   const submitSale = async () => {
     if (inFlight.current || !cart.length) return;     // client double-click lock
-    if (overCap) { showFlash({ kind: 'err', text: `Discount is above your ${discountCap}% limit — ask a manager.` }); return; }
     if (cashShort || splitInvalid) return;
     if (payment === 'split' && !online) { showFlash({ kind: 'err', text: 'Split payments need a connection — take cash only while offline.' }); return; }
     const body = buildSaleBody();
@@ -248,7 +264,7 @@ export default function PosPage() {
     inFlight.current = true; setBusy(true);
     try {
       const { ok, d } = await postSale(body);
-      if (!ok) { showFlash({ kind: 'err', text: d.error || 'Sale failed' }); return; }
+      if (!ok) { showFlash({ kind: 'err', text: d.error || 'Sale failed' }); if (d.code === 'NO_SHIFT') setCashRequest((n) => n + 1); return; }
       const change = d.change ? ` · change ${gbp(d.change)}` : '';
       showFlash({ kind: 'ok', text: `${d.duplicate ? 'Already recorded' : 'Sale recorded'} #${d.orderId} · ${gbp(d.total)}${change}`, receiptId: d.orderId });
       resetBasket();
@@ -345,7 +361,7 @@ export default function PosPage() {
         paymentMethod: retMethod, refundReason: retReason.trim(), idempotencyKey: newKey(),
       };
       const { ok, d } = await postSale(body);
-      if (!ok) { showFlash({ kind: 'err', text: d.error || 'Return failed' }); return; }
+      if (!ok) { showFlash({ kind: 'err', text: d.error || 'Return failed' }); if (d.code === 'NO_SHIFT') setCashRequest((n) => n + 1); return; }
       showFlash({ kind: 'ok', text: `Return #${d.orderId} recorded · refunded ${gbp(d.refund)} (${retMethod})`, receiptId: d.orderId });
       setOrigOrder(null); setOrigId(''); setRetQty({}); setRetReason('');
       loadItems();
@@ -415,6 +431,12 @@ export default function PosPage() {
   // ---- render --------------------------------------------------------------
   return (
     <div className="space-y-3">
+      <StaffBar register={register} onRegister={changeRegister} cashRequest={cashRequest} />
+      {approval && (
+        <PinPad title="Manager approval" subtitle={approval.message} submitLabel="Approve"
+          onCancel={() => { approval.resolve(null); setApproval(null); }}
+          onSubmit={async (pin) => { approval.resolve(pin); setApproval(null); return null; }} />
+      )}
       {/* Status bar */}
       {!online && (
         <div className="rounded-xl bg-red-500/20 border border-red-500/50 px-4 py-2 text-sm font-bold text-red-200">
@@ -617,7 +639,7 @@ export default function PosPage() {
                   </div>
                 </div>
                 {totalDisc > 0 && <div className="flex justify-between text-xs text-zinc-500"><span>Total discount</span><span>−{gbp(totalDisc)}</span></div>}
-                {overCap && <p className="text-xs font-bold text-red-400">Discount {discountPctOfGross.toFixed(1)}% is above your {discountCap}% limit — ask a manager.</p>}
+                {overCap && <p className="text-xs font-bold text-red-400">Discount {discountPctOfGross.toFixed(1)}% is above your {discountCap}% limit — a manager PIN will be asked PIN will be asked.</p>}
                 <div className="flex justify-between text-white font-extrabold text-2xl pt-2 border-t border-zinc-800">
                   <span>Total</span><span>{gbp(total)}</span>
                 </div>
@@ -662,7 +684,7 @@ export default function PosPage() {
               <input className="input mt-3 text-sm !bg-zinc-800 !border-zinc-700 !text-white" placeholder="Staff note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
 
               <button onClick={submitSale}
-                disabled={busy || overCap || cashShort || splitInvalid}
+                disabled={busy || cashShort || splitInvalid}
                 className="w-full mt-4 rounded-xl bg-amber-400 hover:bg-amber-300 disabled:opacity-40 text-black font-black py-5 text-lg">
                 {busy ? 'Recording…' : !online && payment === 'cash' ? `Queue cash sale · ${gbp(total)}` : `✓ Complete ${payment === 'card' ? 'card' : payment === 'split' ? 'split' : 'cash'} sale · ${gbp(total)}`}
               </button>
