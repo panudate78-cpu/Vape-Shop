@@ -22,7 +22,7 @@ function AddressBlock({ addr }: { addr: any }) {
 }
 
 function statusLabel(s: string) {
-  return { pending: 'Payment pending', processing: 'Processing', ready: 'Ready for collection', shipped: 'Shipped', collected: 'Collected', paid: 'Paid', cancelled: 'Cancelled', refunded: 'Refunded' }[s] || s;
+  return { pending: 'Payment pending', processing: 'Processing', ready: 'Ready for collection', shipped: 'Shipped', collected: 'Collected', paid: 'Paid', cancelled: 'Cancelled', unfulfilled: 'Paid', refunded: 'Refunded' }[s] || s;
 }
 
 export default async function OrderPage({ params }: { params: { id: string } }) {
@@ -34,9 +34,15 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
   if (!owns) return <div className="card text-center py-16">This order is not associated with your account.</div>;
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, id));
 
+  // Progress follows fulfilment (what happens to the goods), with payment shown separately.
+  const fs = order.fulfilmentStatus || 'unfulfilled';
+  const paidOk = order.paymentStatus === 'paid' || order.paymentStatus === 'partially_refunded' || order.paymentStatus === 'refunded';
   const trackIndex = (() => {
-    if (order.collectionMode === 'collect') return ['pending', 'paid', 'processing', 'ready', 'collected'].indexOf(order.status);
-    return ['pending', 'paid', 'processing', 'shipped', 'collected'].indexOf(order.status);
+    if (fs === 'cancelled') return -1;
+    if (fs === 'collected' || fs === 'delivered') return 4;
+    if (fs === 'shipped' || fs === 'ready') return 3;
+    if (fs === 'processing') return 2;
+    return paidOk ? 1 : 0;
   })();
   const steps = order.collectionMode === 'collect'
     ? ['Ordered', 'Paid', 'Processing', 'Ready', 'Collected']
@@ -49,7 +55,8 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
           <h1 className="text-2xl font-bold">Order #{order.id}</h1>
           <div className="text-sm text-slate-500">Placed {new Date(order.createdAt!).toLocaleString()}</div>
         </div>
-        <div className="mt-1 text-slate-900">{statusLabel(order.status)}</div>
+        <div className="mt-1 text-slate-900">{fs === 'cancelled' ? 'Cancelled' : statusLabel(fs === 'delivered' ? 'shipped' : fs === 'unfulfilled' ? (paidOk ? 'paid' : 'pending') : fs)}{order.paymentStatus === 'refunded' ? ' · refunded' : order.paymentStatus === 'partially_refunded' ? ' · partly refunded' : ''}</div>
+        {order.collectedBy && order.collectionMode === 'collect' && <div className="text-sm mt-1 text-slate-600">Collected {order.collectedAt ? new Date(order.collectedAt).toLocaleDateString('en-GB') : ''}</div>}
         {order.trackingNumber && <div className="text-sm mt-1">Tracking: <span className="font-mono">{order.trackingNumber}</span> {order.carrier && `(${order.carrier})`}</div>}
         <div className="mt-6 flex justify-between text-xs">
           {steps.map((label, i) => (

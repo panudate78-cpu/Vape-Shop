@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recordTillRefund } from "@/lib/order-lifecycle";
 import { db } from "@/db";
 import { orders, orderItems, productVariants, products, categories, payments } from "@/db/schema";
 import { eq, inArray, sql, and, gte } from "drizzle-orm";
@@ -42,6 +43,8 @@ const bodySchema = z.object({
   discountPct: z.number().min(0).max(100).optional().default(0), // basket % off
   parentOrderId: z.number().int().positive().optional(),   // return / exchange against an earlier sale
   refundReason: z.string().max(200).optional(),
+  refundReasonCode: z.enum(["damaged", "faulty", "wrong_item", "not_as_described", "changed_mind", "cancelled_order", "other"]).optional(),
+  resellable: z.boolean().optional(),                      // returned goods go back on the shelf? (default yes)
   idempotencyKey: z.string().min(8).max(64).optional(),
   registerId: z.string().trim().min(1).max(40).optional(),   // which till rang the sale
   approverPin: z.string().regex(/^\d{4,6}$/).optional(),   // manager/owner PIN for an override the cashier cannot authorise
@@ -167,6 +170,7 @@ export async function POST(req: Request) {
     const ratio = linesGross > 0 ? toC(Number(orig.totalAmount)) / linesGross : 1;
 
     let refundC = 0;
+    const recLines: { orderItemId: number; variantId: number | null; quantity: number; amountC: number }[] = [];
     const retLines: { variantId: number; productName: string; variantLabel: string; sku: string; quantity: number; unitPrice: number }[] = [];
     for (const it of body.items) {
       const ol = origLines.find((l) => l.variantId === it.variantId);
@@ -178,6 +182,7 @@ export async function POST(req: Request) {
       }
       const unitC = Math.round(toC(Number(ol.unitPrice)) * ratio);
       refundC += unitC * it.quantity;
+      recLines.push({ orderItemId: ol.id, variantId: it.variantId, quantity: it.quantity, amountC: unitC * it.quantity });
       retLines.push({ variantId: it.variantId, productName: ol.productName, variantLabel: ol.variantLabel, sku: ol.sku, quantity: -it.quantity, unitPrice: fromC(unitC) });
     }
 
@@ -188,7 +193,7 @@ export async function POST(req: Request) {
       const ret = await db.transaction(async (tx) => {
         if (shift && body.paymentMethod === "cash") await lockOpenShift(tx, shift.id);
         const [r] = await tx.insert(orders).values({
-          userId: null, guestEmail: null, status: "refunded",
+          userId: null, guestEmail: null, status: "refunded", fulfilmentStatus: "collected",
           subtotal: fromC(-refundC).toFixed(2), discount: "0.00", shippingCost: "0.00",
           totalAmount: fromC(-refundC).toFixed(2),
           collectionMode: "collect", paymentGateway: "pos",
@@ -202,6 +207,7 @@ export async function POST(req: Request) {
         } as any).returning();
         await tx.insert(orderItems).values(retLines.map((l) => ({ orderId: r.id, ...l, unitPrice: l.unitPrice.toFixed(2) })));
         for (const l of retLines) {
+          if (body.resellable === false) break; // not resellable: the goods leave stock; nothing goes back on the shelf
           // Goods coming back: +stock, ledger reason "return".
           await applyStockChange(tx, {
             variantId: l.variantId, delta: -l.quantity, reason: "return", actor: a.email,
@@ -209,6 +215,12 @@ export async function POST(req: Request) {
             refKey: `return:${orig.id}:${saleKey}:${l.variantId}`,
           });
         }
+        await recordTillRefund(tx, {
+          originalOrderId: orig.id, returnOrderId: r.id, amountC: refundC, method: body.paymentMethod,
+          reasonCode: body.refundReasonCode || "other", reasonNote: body.refundReason!.trim(),
+          resellable: body.resellable !== false, actor: actorName(a),
+          lines: recLines,
+        });
         await tx.insert(payments).values({
           orderId: r.id, gateway: "pos", gatewayTransactionId: `pos_refund_${body.paymentMethod}_${saleKey}`,
           amount: (-refund).toFixed(2), status: "refunded", raw: { parentOrderId: orig.id, refundReason: body.refundReason },
@@ -317,6 +329,7 @@ export async function POST(req: Request) {
         userId: null,
         guestEmail: null,
         status: "collected", // in-store sale = already handed over
+        fulfilmentStatus: "collected",
         subtotal: fromC(grossC).toFixed(2),
         discount: fromC(totalDiscC).toFixed(2),
         shippingCost: "0.00",

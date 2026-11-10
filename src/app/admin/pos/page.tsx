@@ -59,6 +59,8 @@ export default function PosPage() {
   const [retQty, setRetQty] = useState<Record<number, number>>({});
   const [retReason, setRetReason] = useState('');
   const [retMethod, setRetMethod] = useState<'cash' | 'card'>('cash');
+  const [retCode, setRetCode] = useState('changed_mind');
+  const [retResellable, setRetResellable] = useState(true);
 
   // ---- holds ---------------------------------------------------------------
   const [holds, setHolds] = useState<Hold[]>([]);
@@ -358,12 +360,12 @@ export default function PosPage() {
       const body = {
         parentOrderId: origOrder.order.id,
         items: lines.map((l) => ({ variantId: l.variantId, quantity: retQty[l.variantId!] })),
-        paymentMethod: retMethod, refundReason: retReason.trim(), idempotencyKey: newKey(),
+        paymentMethod: retMethod, refundReason: retReason.trim(), refundReasonCode: retCode, resellable: retResellable, idempotencyKey: newKey(),
       };
       const { ok, d } = await postSale(body);
       if (!ok) { showFlash({ kind: 'err', text: d.error || 'Return failed' }); if (d.code === 'NO_SHIFT') setCashRequest((n) => n + 1); return; }
       showFlash({ kind: 'ok', text: `Return #${d.orderId} recorded · refunded ${gbp(d.refund)} (${retMethod})`, receiptId: d.orderId });
-      setOrigOrder(null); setOrigId(''); setRetQty({}); setRetReason('');
+      setOrigOrder(null); setOrigId(''); setRetQty({}); setRetReason(''); setRetCode('changed_mind'); setRetResellable(true);
       loadItems();
     } finally { inFlight.current = false; setBusy(false); }
   };
@@ -559,7 +561,16 @@ export default function PosPage() {
                       </li>
                     ))}
                   </ul>
+                  <select className="input !text-sm" value={retCode} onChange={(e) => setRetCode(e.target.value)} aria-label="Refund reason">
+                    <option value="changed_mind">Changed mind</option>
+                    <option value="faulty">Faulty / not working</option>
+                    <option value="damaged">Damaged</option>
+                    <option value="wrong_item">Wrong item</option>
+                    <option value="not_as_described">Not as described</option>
+                    <option value="other">Other</option>
+                  </select>
                   <input className="input !text-sm" placeholder="Reason for return (required) e.g. faulty coil" value={retReason} onChange={(e) => setRetReason(e.target.value)} />
+                  <label className="flex items-center gap-3 rounded-xl bg-zinc-800 px-3 py-3 text-sm font-bold text-zinc-100"><input type="checkbox" className="h-5 w-5" checked={retResellable} onChange={(e) => setRetResellable(e.target.checked)} /> Goods are resellable (put back in stock)</label>
                   <div className="grid grid-cols-2 gap-2">
                     <button onClick={() => setRetMethod('cash')} className={`rounded-xl py-3 font-bold ${retMethod === 'cash' ? 'bg-amber-400 text-black' : 'bg-zinc-800 text-zinc-300'}`}>Refund cash</button>
                     <button onClick={() => setRetMethod('card')} className={`rounded-xl py-3 font-bold ${retMethod === 'card' ? 'bg-amber-400 text-black' : 'bg-zinc-800 text-zinc-300'}`}>Refund card (manual)</button>

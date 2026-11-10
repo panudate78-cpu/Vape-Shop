@@ -1,4 +1,5 @@
 import { db, dbReady } from '@/db';
+import { recordEvent, queueNotification } from '@/lib/order-events';
 import { productVariants, stockMovements, stockReservations, stockBatches, orders, orderItems, payments, promoCodes } from '@/db/schema';
 import { and, asc, eq, gt, ne, sql } from 'drizzle-orm';
 
@@ -190,11 +191,17 @@ export async function releaseExpiredReservations(): Promise<number> {
 export async function finalizeOnlinePayment(orderId: number, p: { gatewayTransactionId: string; raw: unknown }) {
   await dbReady();
   return db.transaction(async (tx) => {
+    // Only an unpaid, uncancelled order can be claimed. Staff-cancelled orders must not take money.
     const claimed = await tx.update(orders)
-      .set({ paymentStatus: 'paid', status: 'processing', updatedAt: new Date() })
-      .where(and(eq(orders.id, orderId), ne(orders.paymentStatus, 'paid')))
+      .set({ paymentStatus: 'paid', status: 'paid', updatedAt: new Date() })
+      .where(and(eq(orders.id, orderId), ne(orders.paymentStatus, 'paid'), ne(orders.paymentStatus, 'refunded'), ne(orders.fulfilmentStatus, 'cancelled')))
       .returning({ id: orders.id, promoCode: orders.promoCode, totalAmount: orders.totalAmount, paymentGateway: orders.paymentGateway });
-    if (!claimed.length) return { alreadyPaid: true as const };
+    if (!claimed.length) {
+      const [cur] = await tx.select({ ps: orders.paymentStatus, fs: orders.fulfilmentStatus }).from(orders).where(eq(orders.id, orderId)).limit(1);
+      if (cur?.ps === 'paid') return { alreadyPaid: true as const };
+      if (cur?.fs === 'cancelled') throw new PaymentRejected('ORDER_CANCELLED', 'Order was cancelled before payment arrived. Refund the payment.');
+      throw new PaymentRejected('NOT_PAYABLE', `Order is ${cur?.ps ?? 'missing'} and cannot be paid.`);
+    }
     const order = claimed[0];
 
     const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, orderId));
@@ -222,6 +229,17 @@ export async function finalizeOnlinePayment(orderId: number, p: { gatewayTransac
       orderId, gateway: order.paymentGateway!, gatewayTransactionId: p.gatewayTransactionId,
       amount: order.totalAmount!, status: 'paid', raw: p.raw as any,
     });
+    await recordEvent(tx, orderId, 'payment_paid', 'payment', { gatewayTransactionId: p.gatewayTransactionId, amount: order.totalAmount });
+    // Queued in the same transaction as the payment, so a paid order always has its emails queued.
+    const [who] = rowsOf(await tx.execute(sql`
+      SELECT COALESCE(orders.guest_email, users.email) AS email FROM orders
+      LEFT JOIN users ON users.id = orders.user_id WHERE orders.id = ${orderId}`));
+    await queueNotification(tx, { orderId, kind: 'order_confirmation', recipient: who?.email || '', dedupeKey: `confirm:${orderId}` });
+    await queueNotification(tx, { orderId, kind: 'admin_new_order', recipient: 'admins', dedupeKey: `admin:${orderId}` });
     return { alreadyPaid: false as const };
   });
+}
+
+export class PaymentRejected extends Error {
+  constructor(public code: string, message: string) { super(message); }
 }

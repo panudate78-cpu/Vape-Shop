@@ -14,6 +14,40 @@ export const LAZY_SQL: string[] = [
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS change_given NUMERIC(10,2)`,
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS receipt_emailed_to TEXT`,
   `UPDATE orders SET source='online' WHERE source IS NULL OR source=''`,
+  // ---- orders: separate fulfilment from payment, refunds, history, notifications ----
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS fulfilment_status TEXT NOT NULL DEFAULT 'unfulfilled'`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS refunded_amount NUMERIC(10,2) NOT NULL DEFAULT 0`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS ready_at TIMESTAMP`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipped_at TIMESTAMP`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMP`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS collected_at TIMESTAMP`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS collected_by TEXT`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS id_checked BOOLEAN`,
+  // One-off style backfill from the old combined status column. Only touches rows still at the default.
+  `UPDATE orders SET fulfilment_status = status WHERE fulfilment_status = 'unfulfilled' AND status IN ('processing','ready','shipped','collected','cancelled')`,
+  `UPDATE orders SET fulfilment_status = 'collected' WHERE fulfilment_status = 'unfulfilled' AND source = 'pos'`,
+  `CREATE TABLE IF NOT EXISTS order_events (
+     id SERIAL PRIMARY KEY, order_id INTEGER NOT NULL, at TIMESTAMP NOT NULL DEFAULT NOW(),
+     kind TEXT NOT NULL, actor TEXT, detail JSONB)`,
+  `CREATE INDEX IF NOT EXISTS order_events_order_idx ON order_events (order_id, at)`,
+  `CREATE TABLE IF NOT EXISTS order_refunds (
+     id SERIAL PRIMARY KEY, order_id INTEGER NOT NULL, refund_key TEXT NOT NULL UNIQUE,
+     amount NUMERIC(10,2) NOT NULL, reason_code TEXT NOT NULL, reason_note TEXT,
+     resolution TEXT NOT NULL DEFAULT 'refund', replacement_order_id INTEGER,
+     method TEXT NOT NULL, created_by TEXT, created_at TIMESTAMP NOT NULL DEFAULT NOW())`,
+  `CREATE INDEX IF NOT EXISTS order_refunds_order_idx ON order_refunds (order_id)`,
+  `ALTER TABLE order_refunds ADD COLUMN IF NOT EXISTS include_shipping BOOLEAN NOT NULL DEFAULT FALSE`,
+  `CREATE TABLE IF NOT EXISTS order_refund_lines (
+     id SERIAL PRIMARY KEY, refund_id INTEGER NOT NULL, order_item_id INTEGER NOT NULL,
+     variant_id INTEGER, quantity INTEGER NOT NULL, amount NUMERIC(10,2) NOT NULL,
+     restock BOOLEAN NOT NULL DEFAULT TRUE)`,
+  `CREATE INDEX IF NOT EXISTS order_refund_lines_refund_idx ON order_refund_lines (refund_id)`,
+  `CREATE TABLE IF NOT EXISTS notifications (
+     id SERIAL PRIMARY KEY, order_id INTEGER NOT NULL, kind TEXT NOT NULL, recipient TEXT NOT NULL,
+     dedupe_key TEXT NOT NULL UNIQUE, subject TEXT, status TEXT NOT NULL DEFAULT 'pending',
+     attempts INTEGER NOT NULL DEFAULT 0, last_error TEXT,
+     created_at TIMESTAMP NOT NULL DEFAULT NOW(), updated_at TIMESTAMP NOT NULL DEFAULT NOW(), sent_at TIMESTAMP)`,
+  `CREATE INDEX IF NOT EXISTS notifications_order_idx ON notifications (order_id)`,
   // ---- products / variants ----
   `ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price NUMERIC(10,2)`,
   `ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS barcode TEXT`,

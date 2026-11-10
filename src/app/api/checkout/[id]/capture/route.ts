@@ -4,8 +4,8 @@ import { orders, orderItems, productVariants, promoCodes, payments } from '@/db/
 import { eq, inArray, sql } from 'drizzle-orm';
 import { captureMockPayment } from '@/lib/payments';
 import { getSession } from '@/lib/session';
-import { sendOrderEmailsForOrder } from '@/lib/order-emails';
-import { finalizeOnlinePayment } from '@/lib/stock';
+import { deliverNotifications } from '@/lib/order-events';
+import { finalizeOnlinePayment, PaymentRejected } from '@/lib/stock';
 
 // For mock gateway: finalize payment and deduct stock (same effect as a verified webhook).
 export async function POST(_: Request, { params }: { params: { id: string } }) {
@@ -22,6 +22,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
   try {
     await finalizeOnlinePayment(id, { gatewayTransactionId: res.paymentId, raw: { mock: true } });
   } catch (e: any) {
+    if (e instanceof PaymentRejected) return NextResponse.json({ error: e.message }, { status: 409 });
     console.error('[capture] stock conflict after payment:', id, e?.message);
     return NextResponse.json({ error: e?.message || 'Insufficient stock' }, { status: 409 });
   }
@@ -30,7 +31,7 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
   if (s) { s.cart = []; await s.save(); }
 
   // Fire-and-forget emails (don't fail checkout if email delivery fails).
-  sendOrderEmailsForOrder(id).catch((e) => console.error('[capture] email send failed:', e));
+  deliverNotifications(id).catch((e) => console.error('[capture] email send failed:', e));
 
   return NextResponse.json({ ok: true, orderId: id });
 }

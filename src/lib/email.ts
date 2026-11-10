@@ -48,7 +48,7 @@ function storeUrl(): string {
   return process.env.STORE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://vapeshop202626.vercel.app');
 }
 
-function adminRecipients(): Address[] {
+export function adminRecipients(): Address[] {
   const raw = (process.env.EMAIL_ADMIN_ALERTS_TO || '').trim();
   if (!raw) return [];
   return raw.split(',').map((s) => s.trim()).filter(Boolean).map((email) => ({ email }));
@@ -256,6 +256,23 @@ export function buildAdminNewOrderAlert(o: OrderEmailData) {
     html,
     text,
   };
+}
+
+export function buildCollectionReady(o: OrderEmailData) {
+  const orderNo = o.number || `#${o.id}`;
+  const inner = `
+    <h2>Ready to collect — ${escapeHtml(orderNo)}</h2>
+    <p>Hi${o.customerName ? ' ' + escapeHtml(o.customerName) : ''}, your order is ready to collect from ${escapeHtml(BRAND.fullName)}.</p>
+    <div class="addr">
+      <b>COLLECT FROM</b>
+      ${escapeHtml(fullAddress)}
+    </div>
+    <p>Please bring photo ID (Challenge 25) and your order number <b>${escapeHtml(orderNo)}</b>.</p>
+    <p style="text-align:center;"><a class="btn" href="${storeUrl()}/order/${o.id}">View your order →</a></p>
+    <p style="font-size:12px;color:#6b7280;">Questions? Reply to this email or call ${escapeHtml(BRAND.phone)}.</p>
+  `;
+  const { html, text } = layout(inner, { preview: `Order ${orderNo} is ready to collect` });
+  return { subject: `${BRAND.fullName}: Order ${orderNo} is ready to collect`, html, text };
 }
 
 /* ---------- High-level "sendOrderEmails" used by the payment webhook ---------- */
