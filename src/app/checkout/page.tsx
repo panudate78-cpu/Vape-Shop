@@ -133,11 +133,11 @@ export default function CheckoutPage() {
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
             <h2 className="font-extrabold text-slate-900">Age verification</h2>
-            <p className="text-sm text-slate-500">UK law requires customers to be 18 or over. Enter your date of birth.</p>
+            <p className="text-sm text-slate-500">UK law requires customers to be 18 or over to buy nicotine and vape products. Enter your date of birth. This is a declaration, not an ID check: we check ID again when you collect or receive your order, and we may refuse the order if we cannot confirm your age then.</p>
             <div><label className="block text-xs font-bold text-slate-700 mb-1">Date of birth</label><input className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm w-full text-slate-900 outline-none" type="date" required value={dob} onChange={(e) => setDob(e.target.value)} /></div>
             <label className="flex gap-2 text-sm items-start">
               <input type="checkbox" className="mt-1 accent-[#BBDEFB]" checked={compliance} onChange={(e) => setCompliance(e.target.checked)} required />
-              <span className="text-slate-700">I confirm I am aged 18 or over, that the information provided is correct, and I understand nicotine products are addictive. I may be asked for ID on collection/delivery (Challenge 25).</span>
+              <span className="text-slate-700">I confirm I am aged 18 or over, that the information provided is correct, and I understand nicotine products are addictive. You will need to show photo ID on collection or delivery, and we may refuse to hand over the order if you cannot.</span>
             </label>
           </div>
 

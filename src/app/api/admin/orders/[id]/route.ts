@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
-import { orders, orderItems, users, orderEvents, orderRefunds, orderRefundLines } from '@/db/schema';
+import { orders, orderItems, users, orderEvents, orderRefunds, orderRefundLines, ageChecks } from '@/db/schema';
 import { eq, desc, sql, inArray } from 'drizzle-orm';
 import { requireAdmin } from '@/lib/session';
 import { z } from 'zod';
 import { updateFulfilment, OrderError } from '@/lib/order-lifecycle';
 import { notificationsFor } from '@/lib/order-events';
+import { orderIsRestricted } from '@/lib/compliance';
 import { audit } from '@/lib/audit';
 
 // Payment status is changed only by payments and refunds, so it is not accepted here.
@@ -16,6 +17,8 @@ const patch = z.object({
   carrier: z.string().max(64).optional().nullable(),
   collectedBy: z.string().max(120).optional().nullable(),
   idChecked: z.boolean().optional(),
+  idType: z.enum(['passport', 'uk_photocard_licence', 'pass_card', 'armed_forces', 'other']).optional().nullable(),
+  ageRefusal: z.object({ reasonCode: z.enum(['no_id', 'under_18', 'refused_id', 'proxy_suspected', 'intoxicated', 'other']), note: z.string().max(300).optional().nullable() }).optional().nullable(),
   note: z.string().max(300).optional().nullable(),
 });
 
@@ -40,6 +43,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   for (const l of refundLines) refundedByItem[l.orderItemId] = (refundedByItem[l.orderItemId] ?? 0) + l.quantity;
   const events = await db.select().from(orderEvents).where(eq(orderEvents.orderId, id)).orderBy(desc(orderEvents.at), desc(orderEvents.id));
   const notes = await notificationsFor(id);
+  const checks = await db.select().from(ageChecks).where(eq(ageChecks.orderId, id)).orderBy(desc(ageChecks.at));
 
   return NextResponse.json({
     order: {
@@ -51,6 +55,8 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     refunds: refunds.map((r) => ({ ...r, lines: refundLines.filter((l) => l.refundId === r.id) })),
     events,
     notifications: notes,
+    ageChecks: checks,
+    restricted: await orderIsRestricted(db, id),
   });
 }
 
@@ -70,9 +76,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       carrier: d.carrier,
       collectedBy: d.collectedBy,
       idChecked: d.idChecked,
+      idType: d.idType,
+      ageRefusal: d.ageRefusal,
       note: d.note,
-    }, admin.email);
-    await audit(admin, r.from !== r.to ? 'fulfilment.change' : 'fulfilment.update', 'order', id, { from: r.from, to: r.to, trackingNumber: d.trackingNumber, collectedBy: d.collectedBy });
+    }, admin.fullName || admin.email);
+    await audit(admin, r.refused ? 'age_check.refused' : r.from !== r.to ? 'fulfilment.change' : 'fulfilment.update', 'order', id, { from: r.from, to: r.to, trackingNumber: d.trackingNumber, collectedBy: d.collectedBy, ageRefusal: d.ageRefusal ?? undefined, idType: d.idType ?? undefined });
     return NextResponse.json({ ok: true, fulfilmentStatus: r.to });
   } catch (e: any) {
     if (e instanceof OrderError) return NextResponse.json({ error: e.message, code: e.code }, { status: e.status });

@@ -3,12 +3,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { gbp } from '@/lib/format';
 import { StaffBar, PinPad } from '@/components/till/staff-tools';
+import { agePrompt, parseMg, ID_TYPES, REFUSAL_REASONS } from '@/lib/compliance-rules';
+import { AgeCheckModal } from '@/components/till/age-check-modal';
 
 type VarItem = {
   variantId: number; productId: number; sku: string; barcode: string | null;
   name: string; brand: string; category: string | null; variantLabel: string;
   image: string | null; stock: number; price: number;
+  ageRestricted?: boolean; productKind?: string; nicotineStrength?: string;
 };
+type AgeDecision = { result: 'passed'; idType?: string; appearsOver25?: boolean } | { result: 'refused'; reasonCode: string; note?: string };
 type CartLine = VarItem & { quantity: number; lineDiscountPct: number };
 type Drill = { mode: 'cat' } | { mode: 'brand'; category: string } | { mode: 'variant'; category: string; brand: string };
 type PayMethod = 'cash' | 'card' | 'split';
@@ -72,6 +76,7 @@ export default function PosPage() {
   const [cashRequest, setCashRequest] = useState(0);
   // Manager approval: asked when a cashier refunds or discounts above their cap.
   const [approval, setApproval] = useState<{ message: string; resolve: (pin: string | null) => void } | null>(null);
+  const [ageGate, setAgeGate] = useState<{ prompts: string[]; resolve: (d: AgeDecision | null) => void } | null>(null);
   useEffect(() => { try { const r = localStorage.getItem(REGISTER_KEY); if (r) setRegister(r); } catch { /* ignore */ } }, []);
   const changeRegister = (r: string) => { setRegister(r); try { localStorage.setItem(REGISTER_KEY, r); } catch { /* ignore */ } };
   const inFlight = useRef(false);            // client double-click lock
@@ -234,6 +239,7 @@ export default function PosPage() {
   };
 
   const askApproval = (message: string) => new Promise<string | null>((resolve) => setApproval({ message, resolve }));
+  const askAgeCheck = (prompts: string[]) => new Promise<AgeDecision | null>((resolve) => setAgeGate({ prompts, resolve }));
   const sendSale = async (body: any) => {
     const res = await fetch('/api/admin/pos', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     const d = await res.json().catch(() => ({}));
@@ -252,7 +258,17 @@ export default function PosPage() {
     if (inFlight.current || !cart.length) return;     // client double-click lock
     if (cashShort || splitInvalid) return;
     if (payment === 'split' && !online) { showFlash({ kind: 'err', text: 'Split payments need a connection — take cash only while offline.' }); return; }
-    const body = buildSaleBody();
+    const body: any = buildSaleBody();
+
+    // Challenge 25: any age-restricted item needs an ID check (or a logged refusal) before payment.
+    const restricted = cart.filter((l) => !!l.ageRestricted);
+    if (restricted.length) {
+      if (!online) { showFlash({ kind: 'err', text: 'Age-restricted items need a connection, so the ID check can be recorded. Reconnect to sell them.' }); return; }
+      const prompts = restricted.map((l) => agePrompt(l.productKind || 'unclassified', parseMg(l.nicotineStrength), l.name));
+      const decision = await askAgeCheck(prompts);
+      if (!decision) return;   // cancelled at the till
+      body.ageCheck = decision;
+    }
 
     // Offline: queue cash sales locally; card/split must wait for the connection.
     if (!online) {
@@ -266,6 +282,7 @@ export default function PosPage() {
     inFlight.current = true; setBusy(true);
     try {
       const { ok, d } = await postSale(body);
+      if (!ok && d.code === 'AGE_REFUSED') { showFlash({ kind: 'err', text: 'Sale refused. The refusal has been recorded in the refusal log.' }); return; }
       if (!ok) { showFlash({ kind: 'err', text: d.error || 'Sale failed' }); if (d.code === 'NO_SHIFT') setCashRequest((n) => n + 1); return; }
       const change = d.change ? ` · change ${gbp(d.change)}` : '';
       showFlash({ kind: 'ok', text: `${d.duplicate ? 'Already recorded' : 'Sale recorded'} #${d.orderId} · ${gbp(d.total)}${change}`, receiptId: d.orderId });
@@ -288,7 +305,7 @@ export default function PosPage() {
       try {
         const { ok, status, d } = await postSale(s.body);
         if (ok) { synced++; continue; }
-        if (status === 409 || status === 400 || status === 403) remaining.push({ ...s, error: d.error || 'Rejected' });
+        if (status === 409 || status === 400 || status === 403 || status === 422) remaining.push({ ...s, error: d.error || 'Rejected' });
         else remaining.push(s);
       } catch { remaining.push(s); }
     }
@@ -434,6 +451,10 @@ export default function PosPage() {
   return (
     <div className="space-y-3">
       <StaffBar register={register} onRegister={changeRegister} cashRequest={cashRequest} />
+      {ageGate && (
+        <AgeCheckModal prompts={ageGate.prompts} idTypes={ID_TYPES} reasons={REFUSAL_REASONS}
+          onDecide={(d) => { ageGate.resolve(d); setAgeGate(null); }} />
+      )}
       {approval && (
         <PinPad title="Manager approval" subtitle={approval.message} submitLabel="Approve"
           onCancel={() => { approval.resolve(null); setApproval(null); }}

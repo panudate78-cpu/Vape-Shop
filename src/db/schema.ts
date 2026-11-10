@@ -51,6 +51,12 @@ export const productVariants = pgTable('product_variants', {
   stockQuantity: integer('stock_quantity').notNull().default(0),
   lowStockThreshold: integer('low_stock_threshold').notNull().default(5),
   isActive: boolean('is_active').notNull().default(true),
+  // Compliance: what kind of product this is and whether the age-of-sale rules apply to it.
+  productKind: text('product_kind').notNull().default('unclassified'), // device|replacement_pod|coil|liquid|accessory|disposable|unclassified
+  deviceType: text('device_type').notNull().default(''),       // e.g. pod kit, refillable tank, box mod
+  compatibility: text('compatibility').notNull().default(''),  // devices/coils this fits
+  vgPg: text('vg_pg'),                                         // variant-level VG/PG (falls back to product vgPgRatio)
+  ageRestricted: boolean('age_restricted').notNull().default(true),
   // Stock control: stockQuantity is the single on-hand record shared by web + till.
   // reservedQuantity = units held for in-progress web checkouts (available = stock - reserved).
   reservedQuantity: integer('reserved_quantity').notNull().default(0),
@@ -358,4 +364,75 @@ export const notifications = pgTable('notifications', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   sentAt: timestamp('sent_at'),
+});
+
+// ---- Compliance (age of sale, product rules, blocks and recalls) ----
+// One compliance record per variant: the facts a shop needs to show about the product.
+export const complianceRecords = pgTable('compliance_records', {
+  id: serial('id').primaryKey(),
+  variantId: integer('variant_id').notNull(),
+  mhraNotificationRef: text('mhra_notification_ref'),
+  batchNumber: text('batch_number'),
+  nicotineMgMl: numeric('nicotine_mg_ml', { precision: 6, scale: 2 }),
+  bottleMl: numeric('bottle_ml', { precision: 6, scale: 2 }),
+  tankMl: numeric('tank_ml', { precision: 6, scale: 2 }),
+  childResistant: boolean('child_resistant').notNull().default(false),
+  tamperEvident: boolean('tamper_evident').notNull().default(false),
+  labelCheckedAt: timestamp('label_checked_at'),
+  labelCheckedBy: text('label_checked_by'),
+  supplierName: text('supplier_name'),
+  notes: text('notes').default(''),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  updatedBy: text('updated_by'),
+});
+
+// Links to supplier documents (MHRA notification, safety data sheet, test report, label proof, invoice).
+// Files are kept in the supplier's or shop's own storage; this table holds the link and dates.
+export const complianceDocuments = pgTable('compliance_documents', {
+  id: serial('id').primaryKey(),
+  variantId: integer('variant_id'),
+  productId: integer('product_id'),
+  supplierName: text('supplier_name'),
+  kind: text('kind').notNull(),
+  title: text('title').notNull(),
+  url: text('url').notNull(),
+  expiresAt: timestamp('expires_at'),
+  uploadedBy: text('uploaded_by'),
+  uploadedAt: timestamp('uploaded_at').defaultNow().notNull(),
+});
+
+// Stop-sale (block) and recall records. A block stops new sales; a recall is a block plus contact with buyers.
+export const productBlocks = pgTable('product_blocks', {
+  id: serial('id').primaryKey(),
+  kind: text('kind').notNull(),            // block | recall
+  scope: text('scope').notNull(),          // variant | product
+  variantId: integer('variant_id'),
+  productId: integer('product_id'),
+  reason: text('reason').notNull(),
+  status: text('status').notNull().default('active'), // active | lifted
+  createdBy: text('created_by'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  liftedBy: text('lifted_by'),
+  liftedAt: timestamp('lifted_at'),
+  liftReason: text('lift_reason'),
+});
+
+// Every age check: till Challenge 25, collection and delivery ID checks, online checks.
+// A refusal is a row with result = 'refused', so the refusal log is the same table filtered.
+export const ageChecks = pgTable('age_checks', {
+  id: serial('id').primaryKey(),
+  at: timestamp('at').defaultNow().notNull(),
+  channel: text('channel').notNull(),      // till | collection | delivery | online
+  result: text('result').notNull(),        // passed | refused
+  method: text('method').notNull(),        // id_seen | third_party | dob_declared
+  idType: text('id_type'),                 // passport | uk_photocard_licence | pass_card | armed_forces | other
+  reasonCode: text('reason_code'),         // refusals only
+  note: text('note'),
+  staffName: text('staff_name'),
+  register: text('register'),
+  orderId: integer('order_id'),
+  saleOrderId: integer('sale_order_id'),
+  customerEmail: text('customer_email'),
+  userId: integer('user_id'),
+  productSummary: text('product_summary'),
 });

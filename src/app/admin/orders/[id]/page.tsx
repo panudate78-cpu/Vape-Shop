@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { gbp } from '@/lib/format';
 import { customerLabel, sourceBadge } from '@/lib/admin-helpers';
+import { ID_TYPES, REFUSAL_REASONS } from '@/lib/compliance-rules';
 
 const REASONS = [
   ['damaged', 'Damaged'], ['faulty', 'Faulty / not working'], ['wrong_item', 'Wrong item sent'],
@@ -45,6 +46,9 @@ export default function AdminOrderDetail() {
   const [carrier, setCarrier] = useState('');
   const [collectedBy, setCollectedBy] = useState('');
   const [idChecked, setIdChecked] = useState(false);
+  const [idType, setIdType] = useState('');
+  const [refusalCode, setRefusalCode] = useState('');
+  const [refusalNote, setRefusalNote] = useState('');
   // Refund form
   const [qty, setQty] = useState<Record<number, number>>({});
   const [restock, setRestock] = useState<Record<number, boolean>>({});
@@ -68,7 +72,7 @@ export default function AdminOrderDetail() {
   useEffect(() => { load(); }, [params.id]);
 
   if (!data) return <div className="text-zinc-400 py-10 text-center">{msg?.text || 'Loading…'}</div>;
-  const { order, items, refunds, events, notifications } = data;
+  const { order, items, refunds, events, notifications, ageChecks = [], restricted = false } = data;
   const isPos = order.source === 'pos';
   const isCollect = order.collectionMode === 'collect';
   const fs: string = order.fulfilmentStatus || 'unfulfilled';
@@ -128,7 +132,7 @@ export default function AdminOrderDetail() {
   if (fs === 'unfulfilled') nextButtons.push({ to: 'processing', text: 'Start processing' });
   if (fs === 'processing' && isCollect) nextButtons.push({ to: 'ready', text: 'Mark ready for collection' });
   if (fs === 'processing' && !isCollect) nextButtons.push({ to: 'shipped', text: 'Mark shipped', needs: 'tracking' });
-  if (fs === 'shipped') nextButtons.push({ to: 'delivered', text: 'Mark delivered' });
+  if (fs === 'shipped') nextButtons.push({ to: 'delivered', text: 'Mark delivered', needs: restricted ? 'handover' : undefined });
   if (fs === 'ready') nextButtons.push({ to: 'collected', text: 'Hand over to customer', needs: 'handover' });
   if ((fs === 'unfulfilled' || fs === 'processing' || fs === 'ready') && !paid) nextButtons.push({ to: 'cancelled', text: 'Cancel order' });
 
@@ -165,11 +169,13 @@ export default function AdminOrderDetail() {
               <button key={b.to} disabled={busy}
                 onClick={() => {
                   if (b.to === 'cancelled' && !confirm('Cancel this order? Held stock will be released.')) return;
-                  if (b.to === 'collected' && (!collectedBy.trim() || !idChecked)) { setMsg({ text: 'Enter the collector name and tick "ID checked" first.', kind: 'err' }); return; }
+                  const handover = b.to === 'collected' || (b.to === 'delivered' && restricted);
+                  if (handover && (!collectedBy.trim() || !idChecked)) { setMsg({ text: b.to === 'collected' ? 'Enter the collector name and tick "ID checked" first.' : 'Enter the recipient name and tick "ID checked" first.', kind: 'err' }); return; }
+                  if (handover && restricted && !idType) { setMsg({ text: 'Choose the type of ID shown.', kind: 'err' }); return; }
                   act({
                     fulfilmentStatus: b.to,
                     trackingNumber: tracking || null, carrier: carrier || null,
-                    ...(b.to === 'collected' ? { collectedBy: collectedBy.trim(), idChecked: true } : {}),
+                    ...(handover ? { collectedBy: collectedBy.trim(), idChecked: true, idType: idType || null } : {}),
                   }, `Order moved to ${FUL_LABEL[b.to] || b.to}.`);
                 }}
                 className={`rounded-xl px-4 py-2 text-sm font-extrabold disabled:opacity-60 ${b.to === 'cancelled' ? 'border border-red-400/40 text-red-200 hover:bg-red-900/30' : 'bg-amber-400 text-black hover:bg-amber-300'}`}>
@@ -187,11 +193,31 @@ export default function AdminOrderDetail() {
             </div>
           )}
 
-          {fs === 'ready' && (
+          {((fs === 'ready' && isCollect) || (fs === 'shipped' && !isCollect && restricted)) && (
             <div className="space-y-2 pt-2 border-t border-white/10">
-              <p className="text-sm font-bold text-white">Handover</p>
-              <input className={field} placeholder="Name of person collecting" value={collectedBy} onChange={(e) => setCollectedBy(e.target.value)} />
+              <p className="text-sm font-bold text-white">{isCollect ? 'Handover at the counter' : 'Handover on delivery'}</p>
+              {restricted
+                ? <p className="text-xs text-amber-200">Age-restricted items: check photo ID, record the type shown, then hand over. A refusal is logged below.</p>
+                : <p className="text-xs text-zinc-400">Check photo ID and record who collected the order.</p>}
+              <input className={field} placeholder={isCollect ? 'Name of person collecting' : 'Name of person receiving the parcel'} value={collectedBy} onChange={(e) => setCollectedBy(e.target.value)} />
               <label className="flex items-center gap-2 text-sm text-zinc-200"><input type="checkbox" checked={idChecked} onChange={(e) => setIdChecked(e.target.checked)} /> Photo ID checked (Challenge 25)</label>
+              <select className={field} value={idType} onChange={(e) => setIdType(e.target.value)} aria-label="ID type shown">
+                <option value="">ID shown…</option>
+                {Object.entries(ID_TYPES).map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+              </select>
+              <details className="rounded-xl bg-red-950/30 px-3 py-2">
+                <summary className="cursor-pointer text-sm font-bold text-red-200">Refuse handover (customer cannot prove age)</summary>
+                <div className="mt-2 space-y-2">
+                  <select className={field} value={refusalCode} onChange={(e) => setRefusalCode(e.target.value)} aria-label="Refusal reason">
+                    <option value="">Choose a reason…</option>
+                    {Object.entries(REFUSAL_REASONS).map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                  </select>
+                  <input className={field} placeholder={refusalCode === 'other' ? 'Note (required)' : 'Note (optional)'} value={refusalNote} onChange={(e) => setRefusalNote(e.target.value)} maxLength={300} />
+                  <button disabled={busy || !refusalCode || (refusalCode === 'other' && !refusalNote.trim())}
+                    onClick={() => act({ ageRefusal: { reasonCode: refusalCode, note: refusalNote.trim() || null }, idType: idType || null }, 'Refusal logged. The order has not been handed over.').then((ok) => { if (ok) { setRefusalCode(''); setRefusalNote(''); } })}
+                    className="rounded-xl bg-red-500 px-3 py-2 text-sm font-extrabold text-white disabled:opacity-40">Log refusal</button>
+                </div>
+              </details>
             </div>
           )}
 
@@ -288,6 +314,19 @@ export default function AdminOrderDetail() {
             ))}
             {!events.length && <li className="text-zinc-500">No history yet.</li>}
           </ol>
+        </section>
+        <section className="rounded-2xl border border-white/10 bg-zinc-900 p-5 lg:col-span-2">
+          <h2 className="font-extrabold text-white mb-1">Age checks</h2>
+          <p className="text-xs text-zinc-500 mb-3">{restricted ? 'This order contains age-restricted items.' : 'No age-restricted items in this order.'} An online declaration of date of birth is not an ID check.</p>
+          <ul className="space-y-2 text-sm">
+            {ageChecks.map((c: any) => (
+              <li key={c.id} className="flex flex-wrap justify-between gap-2 border-l-2 border-amber-400/60 pl-3">
+                <span className="text-zinc-100"><b>{({ till: 'Till', collection: 'Collection', delivery: 'Delivery', online: 'Online' } as any)[c.channel] || c.channel}</b> · {c.result === 'refused' ? <span className="text-red-300 font-bold">refused{c.reasonCode ? `: ${REFUSAL_REASONS[c.reasonCode] || c.reasonCode}` : ''}</span> : <span className="text-emerald-300 font-bold">passed</span>} · {({ id_seen: 'ID seen', appearance: 'appears over 25', third_party: 'third-party check', dob_declared: 'date of birth declared' } as any)[c.method] || c.method}{c.idType ? ` · ${ID_TYPES[c.idType] || c.idType}` : ''}</span>
+                <span className="text-xs text-zinc-400">{fmt(c.at)} · {c.staffName || 'customer'}</span>
+              </li>
+            ))}
+            {!ageChecks.length && <li className="text-zinc-500">No age checks recorded.</li>}
+          </ul>
         </section>
         <section className="rounded-2xl border border-white/10 bg-zinc-900 p-5">
           <div className="flex items-center justify-between mb-3">

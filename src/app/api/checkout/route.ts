@@ -8,6 +8,7 @@ import { resolveCart, totals } from '@/lib/cart';
 import { isOfAge } from '@/lib/auth';
 import { createPaymentIntent } from '@/lib/payments';
 import { reserveForOrder, StockError } from '@/lib/stock';
+import { saleGate, recordAgeCheck, ComplianceError } from '@/lib/compliance';
 
 const addressSchema = z.object({
   line1: z.string().min(2), line2: z.string().optional().default(''),
@@ -31,6 +32,15 @@ export async function POST(req: Request) {
   if (!items.length) return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
   // stock check
   for (const i of items) if (i.quantity > i.stockQuantity) return NextResponse.json({ error: `${i.productName} (${i.variantLabel}) only has ${i.stockQuantity} in stock` }, { status: 400 });
+
+  // Stop-sales, recalls and recorded product violations stop the order before it is created.
+  let gate;
+  try {
+    gate = await saleGate(items.map((i) => i.variantId));
+  } catch (e) {
+    if (e instanceof ComplianceError) return NextResponse.json({ error: e.message, code: e.code }, { status: e.status });
+    throw e;
+  }
 
   const body = await req.json().catch(() => ({}));
   const parsed = schema.safeParse(body);
@@ -102,6 +112,17 @@ export async function POST(req: Request) {
     await db.update(orders).set({ status: 'cancelled', paymentStatus: 'failed', updatedAt: new Date() }).where(eq(orders.id, order.id));
     if (e instanceof StockError) return NextResponse.json({ error: e.message }, { status: 409 });
     throw e;
+  }
+
+  // Online age check for age-restricted items: the declared date of birth is recorded.
+  // It is weaker evidence than an ID check, so the order is only handed over after an ID
+  // check at collection or delivery (see the fulfilment rules).
+  if (gate.restrictedIds.length) {
+    await recordAgeCheck(db, {
+      channel: 'online', result: 'passed', method: 'dob_declared',
+      staffName: null, orderId: order.id, customerEmail: email, userId: session.user?.id ?? null,
+      productSummary: gate.restrictedNames.join('; '),
+    });
   }
 
   const intent = await createPaymentIntent({ amount: total, orderId: order.id, email, secret: 'dev-secret' });

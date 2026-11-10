@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { recordTillRefund } from "@/lib/order-lifecycle";
+import { saleGate, recordAgeCheck, ComplianceError } from "@/lib/compliance";
+import { isRestrictedByKind } from "@/lib/compliance-rules";
 import { db } from "@/db";
 import { orders, orderItems, productVariants, products, categories, payments } from "@/db/schema";
 import { eq, inArray, sql, and, gte } from "drizzle-orm";
@@ -44,6 +46,14 @@ const bodySchema = z.object({
   parentOrderId: z.number().int().positive().optional(),   // return / exchange against an earlier sale
   refundReason: z.string().max(200).optional(),
   refundReasonCode: z.enum(["damaged", "faulty", "wrong_item", "not_as_described", "changed_mind", "cancelled_order", "other"]).optional(),
+  // Age check (Challenge 25) for baskets with age-restricted items. Required before payment.
+  ageCheck: z.object({
+    result: z.enum(["passed", "refused"]),
+    idType: z.enum(["passport", "uk_photocard_licence", "pass_card", "armed_forces", "other"]).optional(),
+    appearsOver25: z.boolean().optional(),    // passed without ID: staff judged the customer to be over 25
+    reasonCode: z.enum(["no_id", "under_18", "refused_id", "proxy_suspected", "intoxicated", "other"]).optional(),
+    note: z.string().max(300).optional(),
+  }).optional(),
   resellable: z.boolean().optional(),                      // returned goods go back on the shelf? (default yes)
   idempotencyKey: z.string().min(8).max(64).optional(),
   registerId: z.string().trim().min(1).max(40).optional(),   // which till rang the sale
@@ -83,6 +93,8 @@ export async function GET(req: Request) {
     priceOverride: productVariants.priceOverride,
     basePrice: products.basePrice,
     isActive: productVariants.isActive,
+    productKind: productVariants.productKind,
+    ageRestrictedFlag: productVariants.ageRestricted,
     productActive: products.isActive,
     images: products.images,
   })
@@ -103,6 +115,9 @@ export async function GET(req: Request) {
       brand: r.brand || "Other",
       category: r.categoryName || "Other",
       variantLabel: variantLabel({ flavor: r.flavor, nicotineStrength: r.nicotine, bottleSize: r.size, color: r.color }),
+      nicotineStrength: r.nicotine || "",
+      productKind: r.productKind,
+      ageRestricted: isRestrictedByKind(r.productKind, r.ageRestrictedFlag),
       image: Array.isArray(r.images) ? (r.images as string[])[0] : null,
       stock: Math.max(0, r.stock - r.reserved), // available to sell (held web checkouts excluded)
       price,
@@ -246,6 +261,34 @@ export async function POST(req: Request) {
   const prods = await db.select().from(products).where(inArray(products.id, variants.map((v) => v.productId)));
   const prodById = new Map(prods.map((p) => [p.id, p]));
 
+  // Blocks / recalls, recorded violations, and the age check for restricted items.
+  let gate: Awaited<ReturnType<typeof saleGate>>;
+  try {
+    gate = await saleGate(variantIds);
+  } catch (e) {
+    if (e instanceof ComplianceError) return NextResponse.json({ error: e.message, code: e.code }, { status: e.status });
+    throw e;
+  }
+  const summary = gate.restrictedNames.join("; ");
+  if (gate.restrictedIds.length) {
+    if (!body.ageCheck) {
+      return NextResponse.json({ error: "Age check needed before payment.", code: "AGE_CHECK_REQUIRED", prompts: gate.prompts }, { status: 422 });
+    }
+    if (body.ageCheck.result === "refused") {
+      if (!body.ageCheck.reasonCode) return NextResponse.json({ error: "Choose a refusal reason.", code: "REASON_REQUIRED" }, { status: 400 });
+      if (body.ageCheck.reasonCode === "other" && !body.ageCheck.note?.trim()) return NextResponse.json({ error: "Add a note for 'Other'.", code: "NOTE_REQUIRED" }, { status: 400 });
+      await recordAgeCheck(db, {
+        channel: "till", result: "refused", method: "id_seen", idType: body.ageCheck.idType ?? null,
+        reasonCode: body.ageCheck.reasonCode, note: body.ageCheck.note ?? null,
+        staffName: actorName(a), register, productSummary: summary,
+      });
+      return NextResponse.json({ error: "Sale refused. The refusal has been recorded.", code: "AGE_REFUSED", refused: true }, { status: 422 });
+    }
+    if (!body.ageCheck.appearsOver25 && !body.ageCheck.idType) {
+      return NextResponse.json({ error: "Record the ID type shown, or mark the customer as appearing over 25.", code: "NO_ID_TYPE" }, { status: 400 });
+    }
+  }
+
   const lineItems: { variantId: number; productName: string; variantLabel: string; sku: string; quantity: number; unitPrice: number; lineC: number; grossC: number }[] = [];
   let grossC = 0;
   let lineDiscC = 0;
@@ -350,6 +393,15 @@ export async function POST(req: Request) {
         approvedBy: discountApprover?.name ?? null,
         complianceAccepted: true,
       } as any).returning();
+
+      if (gate.restrictedIds.length && body.ageCheck && body.ageCheck.result === "passed") {
+        await recordAgeCheck(tx, {
+          channel: "till", result: "passed",
+          method: body.ageCheck.appearsOver25 && !body.ageCheck.idType ? "appearance" : "id_seen",
+          idType: body.ageCheck.idType ?? null, note: body.ageCheck.appearsOver25 ? "Appeared over 25" : null,
+          staffName: actorName(a), register, orderId: o.id, saleOrderId: o.id, productSummary: summary,
+        });
+      }
 
       await tx.insert(orderItems).values(
         lineItems.map((li) => ({
