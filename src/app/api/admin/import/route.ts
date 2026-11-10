@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { productVariants, products, categories } from "@/db/schema";
 import { eq, ilike, sql } from "drizzle-orm";
 import { requireAdmin } from "@/lib/session";
+import { ensurePosSchema } from "@/lib/pos-schema";
 
 function parseCsv(text: string): Record<string, string>[] {
   const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
@@ -73,6 +74,7 @@ function gbpOrNull(v: string | undefined): string | null {
 export async function POST(req: Request) {
   const s = await requireAdmin();
   if (!s) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  await ensurePosSchema(); // adds product_variants.barcode if missing
   try {
     await ensureCostColumn();
     const text = await req.text();
@@ -91,8 +93,13 @@ export async function POST(req: Request) {
       const isActive = r.is_active ? r.is_active.toLowerCase() !== "false" : true;
       const images = parseImageList(r.images || r.image_urls);
       const description = (r.description || "").trim();
+      const barcode = (r.barcode || "").trim();
 
       try {
+      if (barcode) {
+        const dup = await db.select({ id: productVariants.id, sku: productVariants.sku }).from(productVariants).where(eq(productVariants.barcode, barcode)).limit(1);
+        if (dup.length && dup[0].sku !== sku) throw new Error(`barcode ${barcode} already used by variant ${dup[0].sku}`);
+      }
       if (sku) {
         const existing = await db.select().from(productVariants).where(eq(productVariants.sku, sku)).limit(1);
         if (existing.length) {
@@ -103,6 +110,7 @@ export async function POST(req: Request) {
             ...(r.nicotine_strength !== undefined ? { nicotineStrength: r.nicotine_strength || null } : {}),
             ...(r.bottle_size !== undefined ? { bottleSize: r.bottle_size || null } : {}),
             ...(r.color !== undefined ? { color: r.color || null } : {}),
+            ...(barcode ? { barcode } : {}),
             lowStockThreshold: threshold,
             isActive,
           }).where(eq(productVariants.sku, sku));
@@ -162,6 +170,7 @@ export async function POST(req: Request) {
         nicotineStrength: r.nicotine_strength || null,
         bottleSize: r.bottle_size || null,
         color: r.color || null,
+        barcode: barcode || null,
         priceOverride: price ? String(price) : null,
         stockQuantity: stock,
         lowStockThreshold: threshold,

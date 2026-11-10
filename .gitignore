@@ -8,3 +8,4 @@ dist
 drizzle
 node_modules
 public/uploads/*
+*.tsbuildinfo

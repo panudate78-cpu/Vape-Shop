@@ -51,6 +51,7 @@ export default function ImportPage() {
         <p className="text-sm text-zinc-400 mt-2">
           Upload a CSV to bulk-create or update products and variants. Required columns:{' '}
           <code className="text-amber-300">sku</code> (updates existing variant),{' '}
+          <code className="text-amber-300">barcode</code> (optional EAN/UPC, must be unique — used by POS scanner),{' '}
           <code className="text-amber-300">product_name</code> (creates a new product if SKU not found).
           Optional columns: <code className="text-amber-300">brand, category, description, images, cost_price, flavor, nicotine_strength, bottle_size, color, stock, price, low_stock_threshold, is_active</code>.
         </p>

@@ -10,6 +10,14 @@ function scrubDesc(d: unknown): string {
   return String(d || '').replace(HEX_COLOR_RE, '').replace(/\s{2,}/g, ' ').trim();
 }
 
+let ensuredCols = false;
+async function ensureColumns() {
+  if (ensuredCols) return;
+  const tryAdd = async (stmt: any) => { try { await db.execute(stmt); } catch (e: any) { if (!/already exists|duplicate column/i.test(e.message || '')) console.warn('[products] col add:', e.message); } };
+  await tryAdd(sql`ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS barcode TEXT`);
+  ensuredCols = true;
+}
+
 async function loadProduct(id: number) {
   const [p] = await db
     .select({
@@ -26,6 +34,7 @@ async function loadProduct(id: number) {
 }
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
+  await ensureColumns();
   const id = Number(params.id);
   if (isNaN(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const p = await loadProduct(id);
@@ -53,7 +62,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
       const override = v.priceOverride != null ? Number(v.priceOverride) : NaN;
       const unitPrice = !isNaN(override) && override > 0 ? override : base;
       return {
-        id: String(v.id), sku: v.sku, flavor: v.flavor, nicotineStrength: v.nicotineStrength,
+        id: String(v.id), sku: v.sku, barcode: (v as any).barcode || null, flavor: v.flavor, nicotineStrength: v.nicotineStrength,
         bottleSize: v.bottleSize, color: v.color,
         basePrice: Number(base.toFixed(2)),
         priceOverride: !isNaN(override) && override > 0 ? Number(override.toFixed(2)) : null,
@@ -70,6 +79,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   const { requireAdmin } = await import('@/lib/session');
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: 'Forbidden — sign in as admin' }, { status: 403 });
+  await ensureColumns();
   const id = Number(params.id);
   if (isNaN(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const body = await req.json().catch(() => ({}));
@@ -101,6 +111,23 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   }
 
   const variants = Array.isArray(body.variants) ? body.variants : [];
+
+  // Barcodes must be unique across all variants (scanner lookup depends on it).
+  const incomingCodes: { code: string; id: number | null }[] = variants
+    .filter((v: any) => !v._delete && typeof v.barcode === 'string' && v.barcode.trim())
+    .map((v: any) => ({ code: v.barcode.trim() as string, id: v.id ? Number(v.id) : null }));
+  const seen = new Set<string>();
+  for (const c of incomingCodes) {
+    if (seen.has(c.code)) return NextResponse.json({ error: `Barcode ${c.code} is used twice in this product.` }, { status: 409 });
+    seen.add(c.code);
+  }
+  if (incomingCodes.length) {
+    const clash = await db.execute(sql`SELECT id, barcode, product_id FROM product_variants WHERE barcode = ANY(${incomingCodes.map((c) => c.code)})`);
+    const rows = (clash as any).rows ?? clash;
+    const conflict = (rows as any[]).find((r) => !incomingCodes.some((c) => c.code === r.barcode && c.id === Number(r.id)));
+    if (conflict) return NextResponse.json({ error: `Barcode ${conflict.barcode} already belongs to another variant (product #${conflict.product_id}).` }, { status: 409 });
+  }
+
   for (const v of variants) {
     // Drop brand-new rows that were immediately marked _delete — they never
     // existed on the server so there's nothing to deactivate.
@@ -114,6 +141,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       nicotineStrength: v.nicotineStrength ?? '0mg',
       bottleSize: v.bottleSize ?? '10ml',
       color: v.color ?? null,
+      barcode: typeof v.barcode === 'string' && v.barcode.trim() ? v.barcode.trim() : null,
       priceOverride: v.priceOverride != null && v.priceOverride !== '' && Number(v.priceOverride) > 0 ? Number(v.priceOverride).toFixed(2) : null,
       stockQuantity: Number(v.stockQuantity ?? 0),
       lowStockThreshold: Number(v.lowStockThreshold ?? 5),

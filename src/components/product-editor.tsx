@@ -5,7 +5,7 @@ import Link from "next/link";
 import { FLAVOR_PROFILES, VG_PG, NICOTINE_STRENGTHS, BOTTLE_SIZES, gbp } from "@/lib/format";
 
 type Variant = {
-  id?: string; sku: string; flavor: string; nicotineStrength: string; bottleSize: string; color: string;
+  id?: string; sku: string; barcode: string; flavor: string; nicotineStrength: string; bottleSize: string; color: string;
   priceOverride: string; stockQuantity: string; lowStockThreshold: string; isActive: boolean; _delete?: boolean;
 };
 
@@ -58,7 +58,7 @@ export default function ProductEditor({ mode, productId }: { mode: "create" | "e
         // editor can show them dimmed with a reactivate toggle, instead of
         // them silently disappearing and being dropped from payload.
         const vs: Variant[] = (j.variants || []).map((v: Record<string, unknown>) => ({
-          id: v.id as string, sku: String(v.sku || ""), flavor: String(v.flavor || ""), nicotineStrength: String(v.nicotineStrength || ""),
+          id: v.id as string, sku: String(v.sku || ""), barcode: String((v.barcode as string) || ""), flavor: String(v.flavor || ""), nicotineStrength: String(v.nicotineStrength || ""),
           bottleSize: String(v.bottleSize || ""), color: String(v.color || ""),
           priceOverride: v.priceOverride != null && v.priceOverride !== null ? String(v.priceOverride) : "",
           stockQuantity: String((v.stockQuantity as number) ?? 0), lowStockThreshold: String((v.lowStockThreshold as number) ?? 10),
@@ -104,7 +104,7 @@ export default function ProductEditor({ mode, productId }: { mode: "create" | "e
       if (exists) continue;
       const rand = Math.random().toString(36).slice(2, 5).toUpperCase();
       const sku = `${(form.brand || "PRD").slice(0, 3).toUpperCase()}-${f.split(" ").map((w) => w[0]).join("").toUpperCase()}-${n.replace("mg", "") || "0"}-${s.replace("ml", "") || "STD"}-${rand}`;
-      fresh.push({ sku, flavor: f, nicotineStrength: n, bottleSize: s, color: "", priceOverride: mPrice, stockQuantity: mStock, lowStockThreshold: "10", isActive: true });
+      fresh.push({ sku, barcode: "", flavor: f, nicotineStrength: n, bottleSize: s, color: "", priceOverride: mPrice, stockQuantity: mStock, lowStockThreshold: "10", isActive: true });
     }
     setVariants([...variants, ...fresh]);
     setMsg({ text: `Generated ${fresh.length} variant(s).`, kind: "ok" });
@@ -126,7 +126,7 @@ export default function ProductEditor({ mode, productId }: { mode: "create" | "e
         return true;
       })
       .map((v) => ({
-        id: v.id, sku: v.sku, flavor: v.flavor, nicotineStrength: v.nicotineStrength, bottleSize: v.bottleSize,
+        id: v.id, sku: v.sku, barcode: v.barcode.trim() || null, flavor: v.flavor, nicotineStrength: v.nicotineStrength, bottleSize: v.bottleSize,
         color: v.color || null,
         priceOverride: v.priceOverride && Number(v.priceOverride) > 0 ? Number(v.priceOverride).toFixed(2) : "",
         stockQuantity: parseInt(v.stockQuantity || "0", 10),
@@ -155,7 +155,7 @@ export default function ProductEditor({ mode, productId }: { mode: "create" | "e
         router.push("/admin/products");
       } else {
         // Refresh snapshot so dirty flag clears
-        const snapshot = { formHash: JSON.stringify({ ...form, description: cleanedDescription, basePrice: bp.toFixed(2) }), variantsHash: JSON.stringify(cleanVariants.map((v) => ({ id: v.id, sku: v.sku, flavor: v.flavor, nicotineStrength: v.nicotineStrength, bottleSize: v.bottleSize, color: v.color || "", priceOverride: v.priceOverride || "", stockQuantity: String(v.stockQuantity), lowStockThreshold: String(v.lowStockThreshold), isActive: v.isActive }))) };
+        const snapshot = { formHash: JSON.stringify({ ...form, description: cleanedDescription, basePrice: bp.toFixed(2) }), variantsHash: JSON.stringify(cleanVariants.map((v) => ({ id: v.id, sku: v.sku, barcode: v.barcode || "", flavor: v.flavor, nicotineStrength: v.nicotineStrength, bottleSize: v.bottleSize, color: v.color || "", priceOverride: v.priceOverride || "", stockQuantity: String(v.stockQuantity), lowStockThreshold: String(v.lowStockThreshold), isActive: v.isActive }))) };
         setLoaded(snapshot);
       }
     } catch (e: any) {
@@ -281,8 +281,9 @@ export default function ProductEditor({ mode, productId }: { mode: "create" | "e
               const hasOverride = !isNaN(overrideNum) && overrideNum > 0;
               const sellsAt = hasOverride ? overrideNum : finalBase;
               return (
-                <div key={variantRowKey(v, realIndex)} className={`grid grid-cols-2 gap-2 rounded-xl border p-3 sm:grid-cols-4 ${(v._delete || !v.isActive) ? "border-zinc-700 bg-zinc-950/40 opacity-60" : "border-white/10 bg-zinc-950"}`}>
+                <div key={variantRowKey(v, realIndex)} className={`grid grid-cols-2 gap-2 rounded-xl border p-3 sm:grid-cols-5 ${(v._delete || !v.isActive) ? "border-zinc-700 bg-zinc-950/40 opacity-60" : "border-white/10 bg-zinc-950"}`}>
                   <input value={v.sku} onChange={(e) => { const c = [...variants]; c[realIndex].sku = e.target.value; setVariants(c); }} placeholder="SKU" className="rounded border border-white/10 bg-zinc-900 px-2 py-1 font-mono text-xs" />
+                  <input value={v.barcode} onChange={(e) => { const c = [...variants]; c[realIndex].barcode = e.target.value; setVariants(c); }} placeholder="Barcode (EAN/UPC)" className="rounded border border-white/10 bg-zinc-900 px-2 py-1 font-mono text-xs" title="Scan or type the barcode — POS will look this up first" />
                   <input value={v.flavor} onChange={(e) => { const c = [...variants]; c[realIndex].flavor = e.target.value; setVariants(c); }} placeholder="Flavour" className="rounded border border-white/10 bg-zinc-900 px-2 py-1 text-xs" />
                   <input value={v.nicotineStrength} onChange={(e) => { const c = [...variants]; c[realIndex].nicotineStrength = e.target.value; setVariants(c); }} placeholder="Nic e.g. 3mg" className="rounded border border-white/10 bg-zinc-900 px-2 py-1 text-xs" />
                   <input value={v.bottleSize} onChange={(e) => { const c = [...variants]; c[realIndex].bottleSize = e.target.value; setVariants(c); }} placeholder="Size e.g. 50ml" className="rounded border border-white/10 bg-zinc-900 px-2 py-1 text-xs" />
@@ -299,7 +300,7 @@ export default function ProductEditor({ mode, productId }: { mode: "create" | "e
                 </div>
               );
             })}
-            <button onClick={() => setVariants([...variants, { sku: `SKU-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2,4).toUpperCase()}`, flavor: "", nicotineStrength: "", bottleSize: "", color: "", priceOverride: "", stockQuantity: "20", lowStockThreshold: "10", isActive: true }])} className="w-full rounded-xl border border-dashed border-white/20 py-2 text-xs font-bold text-zinc-300">+ Add single variant</button>
+            <button onClick={() => setVariants([...variants, { sku: `SKU-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2,4).toUpperCase()}`, barcode: "", flavor: "", nicotineStrength: "", bottleSize: "", color: "", priceOverride: "", stockQuantity: "20", lowStockThreshold: "10", isActive: true }])} className="w-full rounded-xl border border-dashed border-white/20 py-2 text-xs font-bold text-zinc-300">+ Add single variant</button>
           </div>
         </div>
         {msg && <p className={`text-xs font-bold ${msg.kind === "ok" ? "text-emerald-400" : "text-red-400"}`}>{msg.text}</p>}

@@ -37,6 +37,7 @@ export const productVariants = pgTable('product_variants', {
   id: serial('id').primaryKey(),
   productId: integer('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
   sku: text('sku').notNull().unique(),
+  barcode: text('barcode'), // EAN/UPC scanned at POS; unique if set
   flavor: text('flavor').default(''),
   nicotineStrength: text('nicotine_strength').default('0mg'),
   bottleSize: text('bottle_size').default('10ml'),
@@ -91,8 +92,14 @@ export const orders = pgTable('orders', {
   complianceAccepted: boolean('compliance_accepted').default(false),
   promoCode: text('promo_code'),
   source: text('source').notNull().default('online'), // online | pos (in-store sale at the till)
-  paymentMethod: text('payment_method'), // cash | card (for POS); null for online
+  paymentMethod: text('payment_method'), // cash | card | split:... | recorded_card (for POS); null for online
   staffNote: text('staff_note'),
+  parentOrderId: integer('parent_order_id'), // for returns/exchanges: links back to the original sale
+  refundReason: text('refund_reason'),
+  paymentBreakdown: jsonb('payment_breakdown').$type<{ method: string; amount: number }[]>(), // split payments
+  cashTendered: numeric('cash_tendered', { precision: 10, scale: 2 }),
+  changeGiven: numeric('change_given', { precision: 10, scale: 2 }),
+  receiptEmailedTo: text('receipt_emailed_to'),
   // NOTE: emails_sent_at column is added lazily via ALTER TABLE on first use (see order-emails.ts).
   // so first deploy after adding email features doesn't require a manual migration.
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -108,6 +115,21 @@ export const orderItems = pgTable('order_items', {
   sku: text('sku').notNull(),
   quantity: integer('quantity').notNull(),
   unitPrice: numeric('unit_price', { precision: 10, scale: 2 }).notNull(),
+});
+
+// Held (paused) POS baskets — lets staff save a sale mid-transaction and resume
+// it later (e.g. customer forgot their wallet, or another customer needs serving).
+export const heldBaskets = pgTable('held_baskets', {
+  id: serial('id').primaryKey(),
+  holdCode: text('hold_code').notNull().unique(), // human code like H1234
+  customerLabel: text('customer_label'),
+  items: jsonb('items').notNull().$type<{ variantId: number; quantity: number; unitPrice?: number; lineDiscount?: number; lineDiscountPct?: number; label?: string; name?: string; sku?: string }[]>(),
+  discount: numeric('discount', { precision: 10, scale: 2 }).default('0'),
+  discountPct: numeric('discount_pct', { precision: 5, scale: 2 }).default('0'),
+  note: text('note'),
+  heldBy: text('held_by'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  resumedAt: timestamp('resumed_at'),
 });
 
 export const payments = pgTable('payments', {
