@@ -11,7 +11,7 @@ export default async function AdminHome() {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold text-amber-400">Admin dashboard</h1>
+        <h1 className="text-2xl font-bold text-amber-400">{admin.role === 'MANAGER' ? 'Manager dashboard' : 'Admin dashboard'}</h1>
         <div className="flex gap-2 flex-wrap">
           <Link href="/admin/products/new" className="btn-amber">+ New product</Link>
           <a href="/api/admin/export" className="btn-outline">Export inventory</a>

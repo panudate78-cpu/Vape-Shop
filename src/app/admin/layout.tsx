@@ -48,7 +48,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="admin-dark min-h-screen">
     <div className="mx-auto max-w-7xl px-4 py-6">
       <div className="flex items-center gap-3">
-        <h1 className="text-xl font-black text-white">Admin Dashboard</h1>
+        <h1 className="text-xl font-black text-white">{user.role === "MANAGER" ? "Manager Dashboard" : "Admin Dashboard"}</h1>
         <span className="rounded-full bg-amber-400 px-2.5 py-0.5 text-[11px] font-black text-black">{user.fullName || user.email} · {roleLabel}</span>
       </div>
       <nav className="mt-4 flex gap-2 overflow-x-auto">
