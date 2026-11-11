@@ -34,22 +34,25 @@ export async function GET() {
       basePrice: products.basePrice,
       lowStock: productVariants.lowStockThreshold,
       active: productVariants.isActive,
+      barcode: productVariants.barcode,
     })
     .from(productVariants)
     .leftJoin(products, eq(products.id, productVariants.productId))
     .leftJoin(categories, eq(categories.id, products.categoryId));
 
   const header = ['sku','product_name','brand','category','description','images','cost_price',
-    'flavor','nicotine_strength','bottle_size','color','stock','price','low_stock_threshold','is_active'];
+    'flavor','nicotine_strength','bottle_size','color','stock','price','low_stock_threshold','is_active','barcode','base_price'];
   const body = rows.map((r: any) => [
     r.sku, r.product, r.brand, r.category,
     r.description,
     Array.isArray(r.images) ? r.images.join('|') : (r.images ?? ''),
     r.costPrice ?? '',
     r.flavor, r.nicotine, r.size, r.color, r.stock,
-    r.price ?? r.basePrice,
+    r.price ?? '',                       // this variant's own price; blank = the product's base price applies
     r.lowStock,
     r.active === false ? 'false' : 'true',
+    r.barcode ?? '',
+    r.basePrice,                         // read-only: the import ignores this column
   ].map(csv).join(',')).join('\n');
   return new NextResponse(header.join(',') + '\n' + body, {
     headers: { 'content-type': 'text/csv', 'content-disposition': 'attachment; filename="inventory.csv"' },
