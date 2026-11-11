@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { products, productVariants, categories } from '@/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { isAllowedImage, freeSku, duplicateResponse } from '@/lib/product-save';
 
 export const dynamic = 'force-dynamic';
 
@@ -175,7 +176,7 @@ const productSchema = z.object({
   vgPgRatio: z.string().default('70/30'),
   flavorProfile: z.string().default(''),
   tags: z.array(z.string()).default([]),
-  images: z.array(z.string()).default([]),
+  images: z.array(z.string().refine(isAllowedImage, 'Image must be an https:// link or an uploaded image')).default([]),
   isActive: z.boolean().default(true),
   variants: z.array(variantSchema).default([]),
 });
@@ -196,35 +197,54 @@ export async function POST(req: Request) {
 
   const cleanDesc = String(data.description || '').replace(HEX_COLOR_RE_SAVE, '').replace(/\s{2,}/g, ' ').trim();
 
-  const [p] = await db
-    .insert(products)
-    .values({
-      name: data.name.trim(), brand: data.brand,
-      categoryId: data.categoryId || null,
-      description: cleanDesc,
-      basePrice: data.basePrice.toFixed(2),
-      vgPgRatio: data.vgPgRatio,
-      flavorProfile: data.flavorProfile,
-      tags: data.tags,
-      images: data.images,
-      isActive: data.isActive,
-    })
-    .returning();
+  try {
+    // One transaction: a failed variant must not leave a product with no variants behind.
+    const created = await db.transaction(async (tx) => {
+      const [p] = await tx
+        .insert(products)
+        .values({
+          name: data.name.trim(), brand: data.brand,
+          categoryId: data.categoryId || null,
+          description: cleanDesc,
+          basePrice: data.basePrice.toFixed(2),
+          vgPgRatio: data.vgPgRatio,
+          flavorProfile: data.flavorProfile,
+          tags: data.tags,
+          images: data.images,
+          isActive: data.isActive,
+        })
+        .returning();
 
-  const toInsert = data.variants
-    .filter((v) => !v._delete)
-    .map((v, i) => ({
-      productId: p.id,
-      sku: v.sku || `${data.brand.substring(0, 3).toUpperCase()}-${data.name.substring(0, 3).toUpperCase()}-${(i + 1).toString().padStart(3, '0')}`,
-      flavor: v.flavor,
-      nicotineStrength: v.nicotineStrength,
-      bottleSize: v.bottleSize,
-      color: v.color,
-      priceOverride: v.priceOverride != null && v.priceOverride > 0 ? Number(v.priceOverride).toFixed(2) : null,
-      stockQuantity: v.stockQuantity,
-      lowStockThreshold: v.lowStockThreshold,
-      isActive: v.isActive,
-    }));
-  if (toInsert.length) await db.insert(productVariants).values(toInsert);
-  return NextResponse.json(p);
+      const reserved = new Set<string>();
+      const toInsert = [];
+      let i = 0;
+      for (const v of data.variants.filter((v) => !v._delete)) {
+        const base = v.sku?.trim() || `${data.brand.substring(0, 3).toUpperCase()}-${data.name.substring(0, 3).toUpperCase()}-${(i + 1).toString().padStart(3, '0')}`;
+        // A typed-in SKU is kept as entered (a clash is reported); only generated SKUs are adjusted.
+        const sku = v.sku?.trim() ? v.sku.trim() : await freeSku(tx, base, reserved);
+        if (v.sku?.trim()) reserved.add(sku);
+        toInsert.push({
+          productId: p.id,
+          sku,
+          flavor: v.flavor,
+          nicotineStrength: v.nicotineStrength,
+          bottleSize: v.bottleSize,
+          color: v.color,
+          priceOverride: v.priceOverride != null && v.priceOverride > 0 ? Number(v.priceOverride).toFixed(2) : null,
+          stockQuantity: v.stockQuantity,
+          lowStockThreshold: v.lowStockThreshold,
+          isActive: v.isActive,
+        });
+        i += 1;
+      }
+      if (toInsert.length) await tx.insert(productVariants).values(toInsert);
+      return p;
+    });
+    return NextResponse.json(created);
+  } catch (e: any) {
+    const dup = duplicateResponse(e);
+    if (dup) return dup;
+    console.error('[products] create failed:', e);
+    return NextResponse.json({ error: 'Could not create the product. Nothing was saved. Please try again.' }, { status: 500 });
+  }
 }
