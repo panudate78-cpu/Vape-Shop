@@ -3,6 +3,12 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { products, productVariants, categories } from '@/db/schema';
 import { eq, sql } from 'drizzle-orm';
+import { firstBadImage, duplicateResponse } from '@/lib/product-save';
+
+// Thrown inside the save transaction so a failed check rolls everything back.
+class SaveError extends Error {
+  constructor(public status: number, message: string) { super(message); }
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -113,6 +119,10 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   if (priceChanged && admin.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Only the owner can change prices.', code: 'OWNER_ONLY' }, { status: 403 });
   }
+  if (body.images !== undefined) {
+    const bad = firstBadImage(body.images);
+    if (bad !== null) return NextResponse.json({ error: `Image "${bad}" is not allowed. Use an https:// link or upload the picture.` }, { status: 400 });
+  }
   if (body.basePrice !== undefined) {
     const bp = Number(body.basePrice);
     if (isNaN(bp) || bp <= 0) return NextResponse.json({ error: 'Base price must be greater than £0.' }, { status: 400 });
@@ -136,8 +146,10 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   if (body.isActive !== undefined) patch.isActive = !!body.isActive;
   if (body.categoryId !== undefined) patch.categoryId = body.categoryId ? Number(body.categoryId) : null;
 
+  try {
+  await db.transaction(async (tx) => {
   if (Object.keys(patch).length) {
-    await db.update(products).set(patch).where(eq(products.id, id));
+    await tx.update(products).set(patch).where(eq(products.id, id));
   }
 
   const variants = Array.isArray(body.variants) ? body.variants : [];
@@ -148,21 +160,21 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     .map((v: any) => ({ code: v.barcode.trim() as string, id: v.id ? Number(v.id) : null }));
   const seen = new Set<string>();
   for (const c of incomingCodes) {
-    if (seen.has(c.code)) return NextResponse.json({ error: `Barcode ${c.code} is used twice in this product.` }, { status: 409 });
+    if (seen.has(c.code)) throw new SaveError(409, `Barcode ${c.code} is used twice in this product.`);
     seen.add(c.code);
   }
   if (incomingCodes.length) {
-    const clash = await db.execute(sql`SELECT id, barcode, product_id FROM product_variants WHERE barcode = ANY(${incomingCodes.map((c) => c.code)})`);
+    const clash = await tx.execute(sql`SELECT id, barcode, product_id FROM product_variants WHERE barcode = ANY(${incomingCodes.map((c) => c.code)})`);
     const rows = (clash as any).rows ?? clash;
     const conflict = (rows as any[]).find((r) => !incomingCodes.some((c) => c.code === r.barcode && c.id === Number(r.id)));
-    if (conflict) return NextResponse.json({ error: `Barcode ${conflict.barcode} already belongs to another variant (product #${conflict.product_id}).` }, { status: 409 });
+    if (conflict) throw new SaveError(409, `Barcode ${conflict.barcode} already belongs to another variant (product #${conflict.product_id}).`);
   }
 
   for (const v of variants) {
     // Drop brand-new rows that were immediately marked _delete — they never
     // existed on the server so there's nothing to deactivate.
     if (v._delete && v.id) {
-      await db.update(productVariants).set({ isActive: false }).where(eq(productVariants.id, Number(v.id)));
+      await tx.update(productVariants).set({ isActive: false }).where(eq(productVariants.id, Number(v.id)));
       continue;
     }
     if (v._delete && !v.id) continue;
@@ -178,14 +190,22 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       isActive: v.isActive ?? true,
     };
     if (v.id) {
-      await db.update(productVariants).set(data).where(eq(productVariants.id, Number(v.id)));
+      await tx.update(productVariants).set(data).where(eq(productVariants.id, Number(v.id)));
     } else {
-      await db.insert(productVariants).values({
+      await tx.insert(productVariants).values({
         productId: id,
         sku: v.sku || `SKU-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`,
         ...data,
       });
     }
+  }
+  });
+  } catch (e: any) {
+    if (e instanceof SaveError) return NextResponse.json({ error: e.message }, { status: e.status });
+    const dup = duplicateResponse(e);
+    if (dup) return dup;
+    console.error('[products] update failed:', e);
+    return NextResponse.json({ error: 'Could not save the product. Nothing was saved. Please try again.' }, { status: 500 });
   }
 
   const updated = await loadProduct(id);

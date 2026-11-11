@@ -426,7 +426,7 @@ export default function PosPage() {
           <div className="h-20 w-full rounded-lg bg-zinc-800 overflow-hidden mb-2 flex items-center justify-center text-3xl">
             {v.image ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={v.image} alt="" className="h-full w-full object-cover" />
+              <img src={v.image} alt="" className="h-full w-full object-contain" />
             ) : '☁️'}
           </div>
           <p className="text-[10px] font-bold uppercase text-amber-400 tracking-wide truncate">{v.brand}</p>

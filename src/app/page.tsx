@@ -18,7 +18,7 @@ function ProductCard({ p, onAdd }: { p: P; onAdd: (p: P) => void }) {
     <div className="group overflow-hidden rounded-2xl border border-slate-200 bg-white hover:border-[#64B5F6] hover:shadow-md transition">
       <Link href={`/product/${p.id}`}>
         {p.images?.[0] ? (
-          <PlaceholderImage src={p.images[0]} alt={p.name} className="h-44 w-full object-cover bg-slate-100" />
+          <PlaceholderImage src={p.images[0]} alt={p.name} className="h-44 w-full object-contain bg-white" />
         ) : (
           <div className="h-44 bg-gradient-to-br from-slate-500 to-slate-100 grid place-items-center text-5xl">☁️</div>
         )}
@@ -104,7 +104,7 @@ export default function Home() {
             {featured.map((p) => (
               <div key={p.id} className="overflow-hidden rounded-2xl bg-white text-slate-900 shadow-lg hover:shadow-xl transition">
                 {p.images?.[0] ? (
-                  <PlaceholderImage src={p.images[0]} alt={p.name} className="h-36 w-full object-cover md:h-44 bg-slate-100" />
+                  <PlaceholderImage src={p.images[0]} alt={p.name} className="h-36 w-full object-contain md:h-44 bg-white" />
                 ) : (
                   <div className="h-36 w-full md:h-44 bg-slate-50 grid place-items-center text-4xl">☁️</div>
                 )}

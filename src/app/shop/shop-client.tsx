@@ -168,7 +168,7 @@ export function ShopClient({ categories, initialCategory, initialQ }: { categori
                   <li key={p.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white hover:border-[#64B5F6] transition">
                     <Link href={`/product/${p.id}`} tabIndex={-1} aria-hidden="true">
                       {p.images?.[0]
-                        ? <PlaceholderImage src={p.images[0]} alt="" className="h-44 w-full object-cover" />
+                        ? <PlaceholderImage src={p.images[0]} alt="" className="h-44 w-full object-contain bg-white" />
                         : <div className="h-44 bg-gradient-to-br from-slate-100 to-slate-200 grid place-items-center text-5xl" aria-hidden="true">☁️</div>}
                     </Link>
                     <div className="p-3">

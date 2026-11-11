@@ -252,7 +252,7 @@ export default function ProductEditor({ mode, productId }: { mode: "create" | "e
                 {urls.map((u, i) => (
                   <div key={i} className="group relative aspect-square overflow-hidden rounded-lg border border-white/10 bg-zinc-950">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={u} alt="" className="h-full w-full object-cover" onError={(e) => ((e.target as HTMLImageElement).style.opacity = "0.2")} />
+                    <img src={u} alt="" className="h-full w-full object-contain" onError={(e) => ((e.target as HTMLImageElement).style.opacity = "0.2")} />
                     {i === 0 && <span className="absolute left-1 top-1 rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-black text-black">MAIN</span>}
                     <button type="button" onClick={() => {
                       const copy = urls.slice(); copy.splice(i, 1);

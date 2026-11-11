@@ -23,7 +23,7 @@ export function CartDrawer() {
               {cart.map((i) => (
                 <li key={i.lineId} className="flex gap-3 border-b border-slate-200 pb-3">
                   <div className="h-16 w-16 flex-shrink-0 rounded-lg overflow-hidden bg-slate-100">
-                    {i.image ? <PlaceholderImage src={i.image} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full grid place-items-center text-2xl">☁️</div>}
+                    {i.image ? <PlaceholderImage src={i.image} alt="" className="h-full w-full object-contain" /> : <div className="h-full w-full grid place-items-center text-2xl">☁️</div>}
                   </div>
                   <div className="flex-1">
                     <div className="font-bold text-slate-900 text-sm">{i.name}</div>
