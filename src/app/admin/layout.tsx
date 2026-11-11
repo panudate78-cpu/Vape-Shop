@@ -39,6 +39,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       { href: "/admin/products", label: "🧴 Products" },
       { href: "/admin/categories", label: "🏷 Categories" },
       { href: "/admin/cash", label: "💷 Cash & shifts" },
+      { href: "/admin/reports", label: "📈 Reports" },
       { href: "/admin/staff", label: owner ? "👥 Staff & audit" : "🧾 Audit log" },
     ] : []),
     ...(owner ? [{ href: "/admin/import", label: "📥 CSV Import/Export" }] : []),

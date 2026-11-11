@@ -1,3 +1,4 @@
+import { currentCostMap, costForLine } from '@/lib/reports/cost';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/db';
@@ -95,6 +96,7 @@ export async function POST(req: Request) {
   session.pendingOrderIds = [...(session.pendingOrderIds ?? []).slice(-49), order.id];
   await session.save();
 
+  const itemCosts = await currentCostMap(items.map((i) => i.variantId)); // cost snapshot for reporting
   await db.insert(orderItems).values(
     items.map((i) => ({
       orderId: order.id,
@@ -104,6 +106,7 @@ export async function POST(req: Request) {
       sku: i.sku,
       quantity: i.quantity,
       unitPrice: i.unitPrice.toFixed(2),
+      unitCost: costForLine(itemCosts, i.variantId),
     }))
   );
 

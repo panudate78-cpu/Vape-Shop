@@ -21,6 +21,7 @@ export const categories = pgTable('categories', {
   name: text('name').notNull(),
   slug: text('slug').notNull().unique(),
   description: text('description').default(''),
+  taxRate: numeric('tax_rate', { precision: 5, scale: 2 }).notNull().default('20'), // VAT rate % for products in this category (reporting & exports)
 });
 
 export const products = pgTable('products', {
@@ -145,6 +146,7 @@ export const orderItems = pgTable('order_items', {
   sku: text('sku').notNull(),
   quantity: integer('quantity').notNull(),
   unitPrice: numeric('unit_price', { precision: 10, scale: 2 }).notNull(),
+  unitCost: numeric('unit_cost', { precision: 10, scale: 2 }), // cost snapshot at the time of sale (reporting)
 });
 
 // Held (paused) POS baskets — lets staff save a sale mid-transaction and resume
@@ -435,4 +437,12 @@ export const ageChecks = pgTable('age_checks', {
   customerEmail: text('customer_email'),
   userId: integer('user_id'),
   productSummary: text('product_summary'),
+});
+
+// Key/value business settings (e.g. the standard VAT rate used by reports and exports).
+export const appSettings = pgTable('app_settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+  updatedBy: text('updated_by'),
 });

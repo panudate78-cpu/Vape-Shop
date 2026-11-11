@@ -1,3 +1,4 @@
+import { currentCostMap, costForLine } from '@/lib/reports/cost';
 import { NextResponse } from "next/server";
 import { recordTillRefund } from "@/lib/order-lifecycle";
 import { saleGate, recordAgeCheck, ComplianceError } from "@/lib/compliance";
@@ -186,7 +187,7 @@ export async function POST(req: Request) {
 
     let refundC = 0;
     const recLines: { orderItemId: number; variantId: number | null; quantity: number; amountC: number }[] = [];
-    const retLines: { variantId: number; productName: string; variantLabel: string; sku: string; quantity: number; unitPrice: number }[] = [];
+    const retLines: { variantId: number; productName: string; variantLabel: string; sku: string; quantity: number; unitPrice: number; unitCost: string | null }[] = [];
     for (const it of body.items) {
       const ol = origLines.find((l) => l.variantId === it.variantId);
       if (!ol) return NextResponse.json({ error: `Variant ${it.variantId} was not on the original sale` }, { status: 400 });
@@ -198,7 +199,7 @@ export async function POST(req: Request) {
       const unitC = Math.round(toC(Number(ol.unitPrice)) * ratio);
       refundC += unitC * it.quantity;
       recLines.push({ orderItemId: ol.id, variantId: it.variantId, quantity: it.quantity, amountC: unitC * it.quantity });
-      retLines.push({ variantId: it.variantId, productName: ol.productName, variantLabel: ol.variantLabel, sku: ol.sku, quantity: -it.quantity, unitPrice: fromC(unitC) });
+      retLines.push({ variantId: it.variantId, productName: ol.productName, variantLabel: ol.variantLabel, sku: ol.sku, quantity: -it.quantity, unitPrice: fromC(unitC), unitCost: ol.unitCost ?? null });
     }
 
     const refund = fromC(refundC);
@@ -365,6 +366,7 @@ export async function POST(req: Request) {
   }
   const saleKey = intentId ? body.idempotencyKey! : crypto.randomUUID();
   const primary = body.paymentMethod === "split" ? "split" : body.paymentMethod;
+  const lineCosts = await currentCostMap(lineItems.map((l) => l.variantId)); // cost snapshot for reporting
   try {
     const order = await db.transaction(async (tx) => {
       if (shift && cashPartC > 0) await lockOpenShift(tx, shift.id);
@@ -407,6 +409,7 @@ export async function POST(req: Request) {
         lineItems.map((li) => ({
           orderId: o.id, variantId: li.variantId, productName: li.productName, variantLabel: li.variantLabel,
           sku: li.sku, quantity: li.quantity, unitPrice: li.unitPrice.toFixed(2),
+          unitCost: costForLine(lineCosts, li.variantId),
         }))
       );
 
