@@ -5,6 +5,7 @@ import { createHmac } from 'crypto';
 import { db } from '@/db';
 import { users } from '@/db/schema';
 import { and, eq, inArray } from 'drizzle-orm';
+import { sessionSecret } from '@/lib/session';
 
 export type StaffRole = 'ADMIN' | 'MANAGER' | 'CASHIER';
 export const STAFF_ROLES: StaffRole[] = ['ADMIN', 'MANAGER', 'CASHIER'];
@@ -57,7 +58,7 @@ export function can(role: string | null | undefined, perm: Permission): boolean 
 // Only an HMAC of the PIN is stored, so a database leak does not expose PINs.
 // The HMAC is also what makes PIN lookup a single indexed query.
 function pinSecret() {
-  return process.env.SESSION_PASSWORD || 'dev-only-dev-only-dev-only-dev-only-32chars!!';
+  return sessionSecret();
 }
 export function pinLookupOf(pin: string): string {
   return createHmac('sha256', pinSecret()).update(`till-pin:${pin}`).digest('hex');

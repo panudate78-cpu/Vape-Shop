@@ -28,6 +28,7 @@ export async function POST(req: Request) {
   const s = await getSession();
   const previous = s.user ? { id: s.user.id, role: s.user.role } : null;
   s.user = { id: u.id, email: u.email, role: u.role as any, fullName: u.fullName ?? undefined };
+  s.issuedAt = Date.now();
   await s.save();
   await audit({ id: u.id, email: u.email, fullName: u.fullName, role: u.role }, 'staff.switch', 'user', u.id,
     { previousUserId: previous?.id ?? null }, parsed.data.registerId ?? null);

@@ -14,6 +14,7 @@ function csv(v: any) {
 export async function GET() {
   const a = await requireAdmin();
   if (!a) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const owner = a.role === 'ADMIN'; // cost prices are owner-only
   await audit(a, 'export.run', 'export', null, { kind: 'csv' });
   try { await db.execute(sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price NUMERIC(10,2)`); } catch {}
 
@@ -24,7 +25,7 @@ export async function GET() {
       category: categories.name,
       description: products.description,
       images: products.images,
-      costPrice: (products as any).costPrice,
+      ...(owner ? { costPrice: (products as any).costPrice } : {}),
       flavor: productVariants.flavor,
       nicotine: productVariants.nicotineStrength,
       size: productVariants.bottleSize,
@@ -40,13 +41,15 @@ export async function GET() {
     .leftJoin(products, eq(products.id, productVariants.productId))
     .leftJoin(categories, eq(categories.id, products.categoryId));
 
-  const header = ['sku','product_name','brand','category','description','images','cost_price',
-    'flavor','nicotine_strength','bottle_size','color','stock','price','low_stock_threshold','is_active','barcode','base_price'];
+  const cost = (r: any) => (owner ? [r.costPrice ?? ''] : []);
+  const costHead = owner ? ['cost_price'] : [];
+  const header = ['sku','product_name','brand','category','description','images',
+    ...costHead, 'flavor','nicotine_strength','bottle_size','color','stock','price','low_stock_threshold','is_active','barcode','base_price'];
   const body = rows.map((r: any) => [
     r.sku, r.product, r.brand, r.category,
     r.description,
     Array.isArray(r.images) ? r.images.join('|') : (r.images ?? ''),
-    r.costPrice ?? '',
+    ...cost(r),
     r.flavor, r.nicotine, r.size, r.color, r.stock,
     r.price ?? '',                       // this variant's own price; blank = the product's base price applies
     r.lowStock,

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { products, productVariants, categories } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { requireAdmin } from '@/lib/session';
+import { requireAdmin, requireOwner } from '@/lib/session';
 import { z } from 'zod';
 
 const productSchema = z.object({
@@ -26,11 +26,15 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const a = await requireAdmin();
-  if (!a) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const a = await requireOwner();
+  if (!a) return NextResponse.json({ error: 'Forbidden — only the owner can create products' }, { status: 403 });
   const body = await req.json().catch(() => ({}));
   const pp = productSchema.safeParse(body);
   if (!pp.success) return NextResponse.json({ error: 'Bad product', issues: pp.error.flatten() }, { status: 400 });
+  if (pp.data.categoryId != null) {
+    const [cat] = await db.select({ id: categories.id }).from(categories).where(eq(categories.id, pp.data.categoryId)).limit(1);
+    if (!cat) return NextResponse.json({ error: 'Unknown category' }, { status: 400 });
+  }
   const variants = Array.isArray(body.variants) ? body.variants : [];
   const [p] = await db.insert(products).values({
     ...pp.data, basePrice: pp.data.basePrice.toFixed(2),

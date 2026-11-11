@@ -92,6 +92,9 @@ export async function POST(req: Request) {
     })
     .returning();
 
+  session.pendingOrderIds = [...(session.pendingOrderIds ?? []).slice(-49), order.id];
+  await session.save();
+
   await db.insert(orderItems).values(
     items.map((i) => ({
       orderId: order.id,
@@ -125,7 +128,7 @@ export async function POST(req: Request) {
     });
   }
 
-  const intent = await createPaymentIntent({ amount: total, orderId: order.id, email, secret: 'dev-secret' });
+  const intent = await createPaymentIntent({ amount: total, orderId: order.id, email, secret: process.env.WEBHOOK_SECRET ?? '' });
   await db.update(orders).set({ paymentIntentId: intent.id }).where(eq(orders.id, order.id));
 
   return NextResponse.json({ orderId: order.id, total, paymentIntentId: intent.id, clientToken: intent.clientToken });

@@ -6,6 +6,10 @@ import { hashPassword } from '@/lib/auth';
 import { seedCategories, seedProducts, seedPromos } from '@/lib/seed-data';
 
 export async function POST() {
+  // Creates accounts with known demo passwords, so it is closed in production unless ALLOW_SEED=true, and owner-only otherwise.
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_SEED !== 'true') return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const { requireOwner } = await import('@/lib/session');
+  if (!(await requireOwner())) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   // idempotent seed — safe to call repeatedly
   for (const c of seedCategories) {
     const [existing] = await db.select().from(categories).where(eq(categories.slug, c.slug)).limit(1);
