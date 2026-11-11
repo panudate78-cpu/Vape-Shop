@@ -1,8 +1,18 @@
 import { db } from '@/db';
-import { products } from '@/db/schema';
+import { products, categories } from '@/db/schema';
+import { asc } from 'drizzle-orm';
 import AdminProductsClient from './products-client';
 export const dynamic = 'force-dynamic';
+
 export default async function AdminProducts() {
-  const rows = await db.select().from(products).orderBy(products.brand, products.name);
-  return <AdminProductsClient initial={rows.map((r) => ({ ...r, basePrice: Number(r.basePrice) }))} />;
+  const [rows, cats] = await Promise.all([
+    db.select().from(products).orderBy(products.brand, products.name),
+    db.select({ id: categories.id, name: categories.name }).from(categories).orderBy(asc(categories.name)),
+  ]);
+  return (
+    <AdminProductsClient
+      initial={rows.map((r) => ({ ...r, basePrice: Number(r.basePrice) }))}
+      categories={cats}
+    />
+  );
 }
