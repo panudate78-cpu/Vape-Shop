@@ -23,9 +23,9 @@ export default function LoginPage() {
       <h1 className="text-xl font-bold">Login</h1>
       <p className="text-sm text-slate-500 mt-1">Sign in to your account to track orders and checkout faster.</p>
       <form onSubmit={submit} className="space-y-3 mt-4">
-        <div><label className="label">Email</label><input className="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-        <div><label className="label">Password</label><input className="input" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-        {err && <div className="text-red-400 text-sm">{err}</div>}
+        <div><label htmlFor="login-email" className="label">Email</label><input id="login-email" autoComplete="email" className="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+        <div><label htmlFor="login-password" className="label">Password</label><input id="login-password" autoComplete="current-password" className="input" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+        {err && <div role="alert" className="text-sm font-semibold text-red-900">{err}</div>}
         <button className="btn-primary w-full" disabled={loading}>{loading ? 'Signing in…' : 'Sign in'}</button>
         <p className="text-sm text-center text-slate-500">No account? <Link href="/register" className="text-slate-900 underline">Register</Link></p>
       </form>

@@ -72,6 +72,15 @@ export async function Chrome({ children }: { children: React.ReactNode }) {
             <a href={googleMapsUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-extrabold text-slate-900 inline-block mt-4 hover:bg-slate-50 hover:border-[#BBDEFB] transition">Open in Google Maps</a>
           </div>
         </div>
+        <nav aria-label="Customer information" className="border-t border-slate-200 py-3 bg-white">
+          <ul className="max-w-7xl mx-auto px-4 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm font-semibold text-slate-800">
+            <li><Link href="/delivery" className="hover:underline">Delivery &amp; collection</Link></li>
+            <li><Link href="/returns" className="hover:underline">Returns &amp; refunds</Link></li>
+            <li><Link href="/contact" className="hover:underline">Contact</Link></li>
+            <li><Link href="/track" className="hover:underline">Track an order</Link></li>
+            <li><Link href="/privacy" className="hover:underline">Privacy</Link></li>
+          </ul>
+        </nav>
         <div className="border-t border-slate-200 py-4 text-center text-xs text-slate-500 flex flex-wrap items-center justify-center gap-3 bg-slate-50">
           <span>© {new Date().getFullYear()} {BRAND.fullName}. All rights reserved. 18+ only.</span>
           <span className="opacity-50">v7 · {process.env.NEXT_PUBLIC_BUILD_ID || 'prod'}</span>

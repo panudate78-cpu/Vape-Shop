@@ -69,22 +69,22 @@ export default function ContactPage() {
           ) : (
             <form onSubmit={submit} className="mt-4 space-y-3">
               <div>
-                <label className="label">Your name *</label>
-                <input className="input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <label htmlFor="contact-name" className="label">Your name *</label>
+                <input id="contact-name" autoComplete="name" className="input" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="label">Email *</label>
-                  <input type="email" className="input" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                  <label htmlFor="contact-email" className="label">Email *</label>
+                  <input id="contact-email" type="email" autoComplete="email" className="input" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
                 </div>
                 <div>
-                  <label className="label">Phone (optional)</label>
-                  <input type="tel" className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                  <label htmlFor="contact-phone" className="label">Phone (optional)</label>
+                  <input id="contact-phone" type="tel" autoComplete="tel" className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
                 </div>
               </div>
               <div>
-                <label className="label">Subject</label>
-                <select className="input" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })}>
+                <label htmlFor="contact-subject" className="label">Subject</label>
+                <select id="contact-subject" className="input" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })}>
                   <option>General enquiry</option>
                   <option>Stock check / product question</option>
                   <option>Online order help</option>
@@ -95,11 +95,11 @@ export default function ContactPage() {
                 </select>
               </div>
               <div>
-                <label className="label">Message *</label>
-                <textarea rows={5} required className="input" value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
+                <label htmlFor="contact-message" className="label">Message *</label>
+                <textarea id="contact-message" rows={5} required className="input" value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
               </div>
               {typeof state === 'object' && state.error && (
-                <div className="rounded-lg border border-red-400 bg-red-50 p-3 text-sm text-red-700">❌ {state.error}</div>
+                <div role="alert" className="rounded-lg border border-red-400 bg-red-50 p-3 text-sm font-semibold text-red-900">❌ {state.error}</div>
               )}
               <button type="submit" disabled={state === 'sending'} className="btn-primary w-full py-3">
                 {state === 'sending' ? 'Sending…' : 'Send message'}

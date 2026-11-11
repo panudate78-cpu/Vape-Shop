@@ -4,6 +4,7 @@ import { orders, orderItems } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { getSession } from '@/lib/session';
 import { formatPrice } from '@/lib/format';
+import { canViewOrder } from '@/lib/order-access';
 import { BRAND } from '@/lib/brand';
 
 export const dynamic = 'force-dynamic';
@@ -30,8 +31,8 @@ export default async function OrderPage({ params }: { params: { id: string } }) 
   const id = Number(params.id);
   const [order] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
   if (!order) return <div className="card text-center py-16">Order not found.</div>;
-  const owns = (order.userId && s.user?.id === order.userId) || ['ADMIN','MANAGER'].includes(s.user?.role as string) || (order.guestEmail);
-  if (!owns) return <div className="card text-center py-16">This order is not associated with your account.</div>;
+  // Guests see their order in the browser that placed it. On another device they use Track order.
+  if (!canViewOrder(s, order)) return <div className="card text-center py-16">We could not find that order in this browser. <Link className="underline" href="/track">Track an order</Link> with your order number and email.</div>;
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, id));
 
   // Progress follows fulfilment (what happens to the goods), with payment shown separately.

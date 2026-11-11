@@ -45,6 +45,7 @@ async function loadEmailData(orderId: number): Promise<OrderEmailData | null> {
     totalAmount: order.totalAmount,
     collectionMode: (order.collectionMode || 'delivery') as 'delivery' | 'collect',
     shippingAddress: (order.shippingAddress as OrderEmailData['shippingAddress']) || null,
+    isGuest: !order.userId,
     promoCode: order.promoCode,
     customerEmail,
     customerName,
