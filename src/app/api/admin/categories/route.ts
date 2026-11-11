@@ -17,8 +17,9 @@ const createSchema = z.object({
 });
 
 export async function GET() {
-  // Public list endpoint also returns categories — reuse the public /api/categories.
-  // Admin listing is identical but guarded for future expansion (counts, etc.).
+  // Storefront uses the public /api/categories. This admin listing is for staff only.
+  const { requireAdmin } = await import('@/lib/session');
+  if (!(await requireAdmin())) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const rows = await db.select().from(categories).orderBy(categories.name);
   return NextResponse.json(rows);
 }

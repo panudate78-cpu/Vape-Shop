@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'crypto';
 // Mock/adapter payment module. Replace PAYMENT_GATEWAY when you go live.
 // For vape in the UK, use a high-risk-friendly processor (Authorize.net via a high-risk merchant, NMI, Viva).
 
@@ -23,14 +24,13 @@ export async function createPaymentIntent(args: {
 }
 
 export async function verifyWebhook(body: any, query: Record<string, string>): Promise<WebhookEvent> {
-  const secret = query.secret || process.env.WEBHOOK_SECRET || 'dev-secret';
-  if (GW === 'mock') {
-    if (query.secret !== 'dev-secret' && process.env.NODE_ENV === 'production') {
-      return { verified: false, paymentId: '', status: 'failed' };
-    }
-    return { verified: true, paymentId: body.paymentId || 'mock_pay_' + Date.now(), status: body.status === 'failed' ? 'failed' : 'paid', raw: body };
-  }
-  return { verified: false, paymentId: '', status: 'failed' };
+  const reject: WebhookEvent = { verified: false, paymentId: '', status: 'failed' };
+  if (GW !== 'mock') return reject; // real gateways need their own signature check (not wired yet)
+  // Production: WEBHOOK_SECRET is required. Development may fall back to a local default.
+  const expected = process.env.WEBHOOK_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'dev-secret');
+  const given = query.secret ?? '';
+  if (!expected || given.length !== expected.length || !timingSafeEqual(Buffer.from(given), Buffer.from(expected))) return reject;
+  return { verified: true, paymentId: body.paymentId || 'mock_pay_' + Date.now(), status: body.status === 'failed' ? 'failed' : 'paid', raw: body };
 }
 
 export async function captureMockPayment(paymentIntentId: string): Promise<{ success: boolean; paymentId: string }> {

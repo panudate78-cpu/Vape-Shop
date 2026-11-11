@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { suppliers, purchaseOrders } from '@/db/schema';
 import { asc, eq, sql } from 'drizzle-orm';
-import { requireAdmin } from '@/lib/session';
+import { requireOwner } from '@/lib/session';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -19,7 +19,7 @@ const body = z.object({
 });
 
 export async function GET() {
-  const a = await requireAdmin();
+  const a = await requireOwner();
   if (!a) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const rows = await db.select().from(suppliers).orderBy(asc(suppliers.name));
   const openPos = await db.select({ supplierId: purchaseOrders.supplierId, n: sql<number>`count(*)::int` })
@@ -28,7 +28,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const a = await requireAdmin();
+  const a = await requireOwner();
   if (!a) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const p = body.safeParse(await req.json().catch(() => ({})));
   if (!p.success) return NextResponse.json({ error: 'Supplier name is required' }, { status: 400 });
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
 }
 
 export async function PATCH(req: Request) {
-  const a = await requireAdmin();
+  const a = await requireOwner();
   if (!a) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const b = await req.json().catch(() => ({}));
   const id = Number(b.id);

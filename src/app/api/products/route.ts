@@ -141,9 +141,9 @@ const productSchema = z.object({
 const HEX_COLOR_RE_SAVE = /#[0-9a-fA-F]{3,8}\b/g;
 
 export async function POST(req: Request) {
-  const { requireAdmin } = await import('@/lib/session');
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: 'Forbidden — sign in as admin' }, { status: 403 });
+  const { requireOwner } = await import('@/lib/session');
+  const admin = await requireOwner();
+  if (!admin) return NextResponse.json({ error: 'Forbidden — only the owner can create products' }, { status: 403 });
   const body = await req.json().catch(() => ({}));
   const parsed = productSchema.safeParse(body);
   if (!parsed.success) {

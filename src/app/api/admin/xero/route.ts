@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/session';
+import { requireOwner } from '@/lib/session';
 import { loadPaidOrders, toXero } from '@/lib/accounting/export';
 import { audit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
-  const a = await requireAdmin();
+  const a = await requireOwner();
   if (!a) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   await audit(a, 'export.run', 'export', null, { kind: 'xero', url: new URL(req.url).search });
   const url = new URL(req.url);

@@ -27,13 +27,13 @@ export async function POST(req: Request) {
       await recordEvent(null, orderId, 'payment_duplicate', actor, { gatewayTransactionId: wh.paymentId, note: 'Already paid — notification ignored' });
       return NextResponse.json({ ok: true, duplicate: true });
     }
-    if (body.amount != null) {
-      const gotP = Math.round(Number(body.amount) * 100);
-      const wantP = Math.round(Number(order.totalAmount) * 100);
-      if (!Number.isFinite(gotP) || gotP !== wantP) {
-        await recordEvent(null, orderId, 'payment_rejected', actor, { reason: 'amount_mismatch', received: body.amount, expected: order.totalAmount, gatewayTransactionId: wh.paymentId });
-        return NextResponse.json({ error: 'amount mismatch' }, { status: 409 });
-      }
+    // A paid notification with no amount, or a different amount, is never accepted.
+    const gotP = body.amount == null ? NaN : Math.round(Number(body.amount) * 100);
+    const wantP = Math.round(Number(order.totalAmount) * 100);
+    if (!Number.isFinite(gotP) || gotP !== wantP) {
+      const reason = body.amount == null ? 'amount_missing' : 'amount_mismatch';
+      await recordEvent(null, orderId, 'payment_rejected', actor, { reason, received: body.amount ?? null, expected: order.totalAmount, gatewayTransactionId: wh.paymentId });
+      return NextResponse.json({ error: reason.replace('_', ' ') }, { status: 409 });
     }
     try {
       const r = await finalizeOnlinePayment(orderId, { gatewayTransactionId: wh.paymentId, raw: body });

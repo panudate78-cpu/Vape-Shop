@@ -11,7 +11,11 @@ import { finalizeOnlinePayment, PaymentRejected } from '@/lib/stock';
 export async function POST(_: Request, { params }: { params: { id: string } }) {
   const id = Number(params.id);
   const [order] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
-  if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  // Not found and not yours look the same, so order numbers cannot be probed.
+  const s = await getSession();
+  const mine = (order?.userId != null && s.user?.id === order.userId) || (s.pendingOrderIds ?? []).includes(id);
+  const owner = s.user?.role === 'ADMIN';
+  if (!order || (!mine && !owner)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (order.paymentStatus === 'paid') return NextResponse.json({ ok: true, orderId: id });
   if (order.paymentGateway !== 'mock') return NextResponse.json({ error: 'Use webhook for non-mock gateways' }, { status: 400 });
 
@@ -27,8 +31,8 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
     return NextResponse.json({ error: e?.message || 'Insufficient stock' }, { status: 409 });
   }
 
-  const s = await getSession();
-  if (s) { s.cart = []; await s.save(); }
+  s.cart = [];
+  await s.save();
 
   // Fire-and-forget emails (don't fail checkout if email delivery fails).
   deliverNotifications(id).catch((e) => console.error('[capture] email send failed:', e));

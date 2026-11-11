@@ -65,15 +65,7 @@ export default function Home() {
     setProducts(j.products || []);
   };
   useEffect(() => {
-    load().then(async () => {
-      const r = await fetch("/api/products", { cache: "no-store" }).then((x) => x.json()).catch(() => null);
-      if (r && (r.products || []).length === 0) {
-        setSeeding(true);
-        await fetch("/api/seed", { method: "POST" }).catch(() => {});
-        setSeeding(false);
-        load();
-      }
-    });
+    load();
   }, []);
 
   const featured = products.slice(0, 4);
