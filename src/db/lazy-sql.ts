@@ -30,6 +30,13 @@ export const LAZY_SQL: string[] = [
      method TEXT NOT NULL, id_type TEXT, reason_code TEXT, note TEXT, staff_name TEXT, register TEXT,
      order_id INTEGER, sale_order_id INTEGER, customer_email TEXT, user_id INTEGER, product_summary TEXT)`,
   `CREATE INDEX IF NOT EXISTS age_checks_order_idx ON age_checks (order_id)`,
+  // ---- reporting (item 8): cost snapshot per sale line, VAT rate per category, business settings ----
+  `ALTER TABLE order_items ADD COLUMN IF NOT EXISTS unit_cost NUMERIC(10,2)`,
+  `ALTER TABLE categories ADD COLUMN IF NOT EXISTS tax_rate NUMERIC(5,2) NOT NULL DEFAULT 20`,
+  `CREATE TABLE IF NOT EXISTS app_settings (
+     key TEXT PRIMARY KEY, value TEXT NOT NULL,
+     updated_at TIMESTAMP NOT NULL DEFAULT NOW(), updated_by TEXT)`,
+  `CREATE INDEX IF NOT EXISTS order_items_variant_idx ON order_items (variant_id)`,
   `CREATE INDEX IF NOT EXISTS age_checks_result_idx ON age_checks (result, at)`,
   // ---- orders: POS + returns ----
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS source TEXT`,

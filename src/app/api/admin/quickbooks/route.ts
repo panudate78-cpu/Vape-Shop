@@ -1,3 +1,4 @@
+import { standardVatRate } from '@/lib/reports/load';
 import { NextResponse } from 'next/server';
 import { requireOwner } from '@/lib/session';
 import { loadPaidOrders, toQuickBooks } from '@/lib/accounting/export';
@@ -27,6 +28,7 @@ export async function GET(req: Request) {
     defaultItem: s('defaultItem'),
     shippingItem: s('shippingItem'),
     discountItem: s('discountItem'),
+    std: await standardVatRate(),
   });
 
   const today = new Date().toISOString().slice(0, 10);

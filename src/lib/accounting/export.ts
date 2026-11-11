@@ -7,11 +7,15 @@
  */
 import { db } from '@/db';
 import { orders, orderItems, users } from '@/db/schema';
-import { eq, desc, sql, and, inArray } from 'drizzle-orm';
+import { eq, desc, sql, and, inArray, isNull } from 'drizzle-orm';
+import { productVariants, products, categories } from '@/db/schema';
+import { standardVatRate } from '@/lib/reports/load';
+import { londonMidnight, addDays } from '@/lib/reports/london';
 
 export type LineItem = {
   orderId: number; name: string; label: string; sku: string;
-  qty: number; unitPrice: number;
+  qty: number; unitPrice: number; // unitPrice is VAT-inclusive (what the customer paid)
+  taxRate: number; // VAT % of the product's category, e.g. 20
 };
 export type OrderRow = {
   id: number; number: string; createdAt: Date;
@@ -57,9 +61,14 @@ export function fmtDateIso(iso: Date): string {
 
 export async function loadPaidOrders(params: { from?: string | null; to?: string | null; source?: string | null }): Promise<OrderRow[]> {
   await ensureCols();
-  const conds: any[] = [eq(orders.paymentStatus, 'paid')];
-  if (params.from) conds.push(sql`${orders.createdAt} >= ${new Date(params.from + 'T00:00:00')}`);
-  if (params.to) conds.push(sql`${orders.createdAt} < ${new Date(params.to + 'T00:00:00')}`);
+  // Same sale definition as the owner reports: refunded or partly refunded sales are still sales.
+  // Refunds themselves are NOT exported as credit lines yet (see notes).
+  const conds: any[] = [inArray(orders.paymentStatus, ['paid', 'partially_refunded', 'refunded'])];
+  // Till returns are separate negative rows linked by parentOrderId; they are refunds, not sales (same as the reports).
+  conds.push(isNull(orders.parentOrderId));
+  // London-midnight bounds as ISO strings (raw Date objects are not accepted by the driver in sql templates).
+  if (params.from) conds.push(sql`${orders.createdAt} >= ${londonMidnight(params.from).toISOString()}::timestamptz`);
+  if (params.to) conds.push(sql`${orders.createdAt} < ${londonMidnight(addDays(params.to, 1)).toISOString()}::timestamptz`);
   if (params.source === 'online') conds.push(sql`coalesce(${orders.source},'online') = 'online'`);
   if (params.source === 'pos') conds.push(sql`${orders.source} = 'pos'`);
   const where = conds.length === 1 ? conds[0] : and(...conds);
@@ -75,12 +84,29 @@ export async function loadPaidOrders(params: { from?: string | null; to?: string
     ? await db.select({
         orderId: orderItems.orderId, name: orderItems.productName, label: orderItems.variantLabel,
         sku: orderItems.sku, qty: orderItems.quantity, unitPrice: orderItems.unitPrice,
+        variantId: orderItems.variantId,
       }).from(orderItems).where(inArray(orderItems.orderId, rows.map((r) => r.order.id)))
     : [];
+  // VAT rate per variant, from its category (set in the VAT rates section of the reports page).
+  const variantIds = [...new Set(items.map((i) => i.variantId).filter((x): x is number => x != null))];
+  const rateByVariant = new Map<number, number>();
+  if (variantIds.length) {
+    const rateRows = await db.select({ id: productVariants.id, taxRate: categories.taxRate })
+      .from(productVariants)
+      .innerJoin(products, eq(products.id, productVariants.productId))
+      .innerJoin(categories, eq(categories.id, products.categoryId))
+      .where(inArray(productVariants.id, variantIds));
+    for (const r of rateRows) rateByVariant.set(r.id, Number(r.taxRate));
+  }
+  const std = await standardVatRate();
   const itemsByOrder = new Map<number, LineItem[]>();
   for (const it of items) {
     if (!itemsByOrder.has(it.orderId)) itemsByOrder.set(it.orderId, []);
-    itemsByOrder.get(it.orderId)!.push({ ...it, qty: Number(it.qty), unitPrice: Number(it.unitPrice) });
+    const taxRate = it.variantId != null && rateByVariant.has(it.variantId) ? rateByVariant.get(it.variantId)! : std;
+    itemsByOrder.get(it.orderId)!.push({
+      orderId: it.orderId, name: it.name, label: it.label, sku: it.sku,
+      qty: Number(it.qty), unitPrice: Number(it.unitPrice), taxRate,
+    });
   }
 
   return rows.map(({ order, email, fullName }) => {
@@ -109,108 +135,115 @@ export async function loadPaidOrders(params: { from?: string | null; to?: string
   });
 }
 
-// ---------- QuickBooks Online (Sales Receipts CSV) ----------
-export function toQuickBooks(orders: OrderRow[], opts: { depositTo?: string; defaultItem?: string; shippingItem?: string; discountItem?: string }) {
-  const depositTo = opts.depositTo || 'Sales';
-  const defaultItem = opts.defaultItem || 'Sales';
-  const shippingItem = opts.shippingItem || 'Postage';
-  const discountItem = opts.discountItem || 'Discounts';
-  const header = ['Date','Customer','Email','Payment Method','Reference No.','Deposit To','Memo','Product/Service','Description','Qty','Rate','Amount','Tax','Class'];
-  const out: string[] = [];
-  for (const o of orders) {
-    const cls = o.isPos ? 'In-store' : 'Online';
-    for (const li of o.items) {
-      const amount = +(li.qty * li.unitPrice).toFixed(2);
-      out.push([fmtDateUk(o.createdAt), o.customerName, o.customerEmail, o.payMethod, o.number, depositTo, o.memo, defaultItem,
-        `${li.name}${li.label ? ' — ' + li.label : ''}`, li.qty, li.unitPrice.toFixed(2), amount.toFixed(2), '', cls].map(csv).join(','));
-    }
-    if (o.shipping > 0) {
-      out.push([fmtDateUk(o.createdAt), o.customerName, o.customerEmail, o.payMethod, o.number, depositTo, o.memo, shippingItem,
-        'Delivery / postage', 1, o.shipping.toFixed(2), o.shipping.toFixed(2), '', cls].map(csv).join(','));
-    }
-    if (o.discount > 0) {
-      out.push([fmtDateUk(o.createdAt), o.customerName, o.customerEmail, o.payMethod, o.number, depositTo, o.memo, discountItem,
-        'Discount applied', 1, (-o.discount).toFixed(2), (-o.discount).toFixed(2), '', cls].map(csv).join(','));
-    }
-    if (o.items.length === 0 && o.shipping === 0 && o.discount === 0) {
-      out.push([fmtDateUk(o.createdAt), o.customerName, o.customerEmail, o.payMethod, o.number, depositTo, o.memo, defaultItem,
-        'Order total', 1, o.total.toFixed(2), o.total.toFixed(2), '', cls].map(csv).join(','));
-    }
+// ---------- Shared VAT maths for the exporters ----------
+// Prices are VAT-inclusive. Each line is split into ex-VAT net and VAT at its own category rate.
+// All three exports send ex-VAT amounts and let the accounting package apply the tax code, so the
+// VAT total in the file matches the VAT figure in the owner reports.
+export const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+export function splitGross(gross: number, ratePct: number) {
+  const net = r2(gross / (1 + ratePct / 100));
+  return { net, vat: r2(gross - net) };
+}
+export type ExportLine = { description: string; qty: number; gross: number; rate: number; account: string };
+
+// Lines the exporters write: one per product line, plus postage, plus a discount (negative) at the standard rate.
+export function invoiceLines(o: OrderRow, std: number, shippingAccount: string, discountAccount: string): ExportLine[] {
+  const out: ExportLine[] = [];
+  for (const li of o.items) {
+    out.push({ description: `${li.name}${li.label ? ' — ' + li.label : ''}`, qty: li.qty, gross: r2(li.qty * li.unitPrice), rate: li.taxRate, account: '' });
   }
-  return { header, rows: out };
+  if (o.shipping > 0) out.push({ description: 'Delivery / postage', qty: 1, gross: r2(o.shipping), rate: std, account: shippingAccount });
+  if (o.discount > 0) out.push({ description: 'Discount applied', qty: 1, gross: -r2(o.discount), rate: std, account: discountAccount });
+  if (out.length === 0) out.push({ description: 'Order total', qty: 1, gross: r2(o.total), rate: std, account: '' });
+  return out;
 }
 
-// ---------- Xero (Sales Invoices, ACC-REC sales) ----------
-// Minimal Xero CSV invoice format: one header row per invoice (ContactName,
-// InvoiceNumber, InvoiceDate, DueDate, Description, Quantity, UnitAmount,
-// AccountCode, TaxType, Reference) followed by repeating line rows.
-// For our purposes we send one invoice per order, one row per line, with an
-// auto-generated header per order by repeating the shared fields in every row
-// (Xero handles duplicate *InvoiceNumber rows as additional lines).
-export function toXero(orders: OrderRow[], opts: { salesAccount?: string; shippingAccount?: string; discountAccount?: string; taxRate?: string }) {
-  const salesAccount = opts.salesAccount || process.env.XERO_SALES_ACCOUNT || '200';
-  const shippingAccount = opts.shippingAccount || process.env.XERO_SHIPPING_ACCOUNT || salesAccount;
-  const discountAccount = opts.discountAccount || process.env.XERO_DISCOUNT_ACCOUNT || salesAccount;
-  // Tax rates: UK vape retail is standard 20% VAT inclusive.
-  const tax = opts.taxRate || process.env.XERO_TAX_RATE || '20% (VAT on Income)';
+// UK dates as DD/MM/YYYY (day first).
+export const ukDate = (d: Date) => fmtDateUk(d);
 
-  const header = ['*ContactName','*InvoiceNumber','*InvoiceDate','*DueDate','Description','*Quantity','*UnitAmount','*AccountCode','*TaxType','Reference','Status','Currency','BrandingTheme'];
+// ---------- Xero: sales invoice import (27 fixed columns, in Xero's order) ----------
+export const XERO_HEADER = [
+  '*ContactName', 'EmailAddress', 'POAddressLine1', 'POAddressLine2', 'POAddressLine3', 'POAddressLine4',
+  'POCity', 'PORegion', 'POPostalCode', 'POCountry', '*InvoiceNumber', 'Reference', '*InvoiceDate', '*DueDate',
+  'InventoryItemCode', '*Description', '*Quantity', '*UnitAmount', 'Discount', '*AccountCode', '*TaxType',
+  'TrackingName1', 'TrackingOption1', 'TrackingName2', 'TrackingOption2', 'Currency', 'BrandingTheme',
+] as const;
+// Xero tax rate names (Settings > Tax rates). A rate with no name here is an export error, not a silent zero.
+export const XERO_TAX_NAMES: Record<number, string> = { 20: '20% (VAT on Income)', 5: '5% (VAT on Income)', 0: 'Zero Rated Income' };
+
+export function toXero(orders: OrderRow[], opts: { salesAccount?: string; shippingAccount?: string; discountAccount?: string; taxNames?: Record<number, string>; std: number }) {
+  const sales = opts.salesAccount || process.env.XERO_SALES_ACCOUNT || '200';
+  const names = opts.taxNames || XERO_TAX_NAMES;
   const out: string[] = [];
   for (const o of orders) {
-    const date = fmtDateUk(o.createdAt);
-    const status = 'AUTHORISED'; // paid sales receipt: create as authorised (Xero marks it unpaid if status AUTHORISED; for fully paid we'd need a payment row too, which is easier to reconcile in-bank)
-    for (const li of o.items) {
-      out.push([
-        o.customerName, o.number, date, date,
-        `${li.name}${li.label ? ' — ' + li.label : ''}`,
-        li.qty, li.unitPrice.toFixed(2), salesAccount, tax, o.memo, status, 'GBP', '',
-      ].map(csv).join(','));
-    }
-    if (o.shipping > 0) {
-      out.push([o.customerName, o.number, date, date, 'Delivery / postage', 1, o.shipping.toFixed(2), shippingAccount, tax, o.memo, status, 'GBP', ''].map(csv).join(','));
-    }
-    if (o.discount > 0) {
-      out.push([o.customerName, o.number, date, date, 'Discount applied', 1, (-o.discount).toFixed(2), discountAccount, tax, o.memo, status, 'GBP', ''].map(csv).join(','));
-    }
-    if (o.items.length === 0 && o.shipping === 0 && o.discount === 0) {
-      out.push([o.customerName, o.number, date, date, 'Order total', 1, o.total.toFixed(2), salesAccount, tax, o.memo, status, 'GBP', ''].map(csv).join(','));
+    const date = ukDate(o.createdAt);
+    for (const l of invoiceLines(o, opts.std, opts.shippingAccount || sales, opts.discountAccount || sales)) {
+      const tax = names[l.rate];
+      if (!tax) throw new Error(`No Xero tax rate name configured for ${l.rate}% (order ${o.number}). Add it before exporting.`);
+      const { net } = splitGross(l.gross, l.rate);
+      const unit = +(net / l.qty).toFixed(4);
+      const row: Record<string, string | number> = {
+        '*ContactName': o.customerName, EmailAddress: o.customerEmail, '*InvoiceNumber': o.number,
+        Reference: o.memo, '*InvoiceDate': date, '*DueDate': date, '*Description': l.description,
+        '*Quantity': l.qty, '*UnitAmount': unit.toFixed(4), '*AccountCode': l.account || sales, '*TaxType': tax, Currency: 'GBP',
+      };
+      out.push(XERO_HEADER.map((h) => csv(row[h] ?? '')).join(','));
     }
   }
-  return { header, rows: out };
+  return { header: [...XERO_HEADER], rows: out };
 }
 
-// ---------- Sage Business Cloud (Sales invoices CSV, UK) ----------
-// Sage's UK CSV uses Type, Account Reference, Date, Reference, Details, Net,
-// Tax Code, Tax, Total per line (audit-style). We also output Sage 50
-// friendly variant. Since prices are VAT-INCLUSIVE at UK retail, we split
-// gross into Net + VAT at 20% for T1 (standard rate).
-export function toSage(orders: OrderRow[], opts: { nominalCode?: string; shippingNominal?: string; discountNominal?: string; taxCode?: string; customerRef?: string }) {
+// ---------- QuickBooks Online: Sales Receipts (column order as QBO's sales receipt import expects) ----------
+export const QBO_HEADER = [
+  '*Sales Receipt No', 'Customer', '*Sales Receipt Date', '*Deposit Account', 'Location', 'Memo',
+  'Item (Product/Service)', 'Item Description', 'Item Quantity', 'Item Rate', '*Item Amount', '*Item Tax Code',
+  'Item Tax Amount', 'Currency', 'Service Date',
+] as const;
+// QBO tax code names for UK VAT. Confirm these match the tax codes in the company file.
+export const QBO_TAX_CODES: Record<number, string> = { 20: '20.0% S', 5: '5.0% RR', 0: 'Zero rated' };
+
+export function toQuickBooks(orders: OrderRow[], opts: { depositTo?: string; defaultItem?: string; shippingItem?: string; discountItem?: string; taxCodes?: Record<number, string>; std: number }) {
+  const deposit = opts.depositTo || process.env.QBO_DEPOSIT_ACCOUNT || 'Undeposited Funds';
+  const item = opts.defaultItem || 'Sales';
+  const codes = opts.taxCodes || QBO_TAX_CODES;
+  const out: string[] = [];
+  for (const o of orders) {
+    const date = ukDate(o.createdAt);
+    for (const l of invoiceLines(o, opts.std, opts.shippingItem || 'Postage', opts.discountItem || 'Discounts')) {
+      const code = codes[l.rate];
+      if (!code) throw new Error(`No QuickBooks tax code configured for ${l.rate}% (order ${o.number}).`);
+      const { net, vat } = splitGross(l.gross, l.rate);
+      const row: Record<string, string | number> = {
+        '*Sales Receipt No': o.number, Customer: o.customerName, '*Sales Receipt Date': date, '*Deposit Account': deposit,
+        Memo: o.memo, 'Item (Product/Service)': l.account || item, 'Item Description': l.description,
+        'Item Quantity': l.qty, 'Item Rate': +(net / l.qty).toFixed(4), '*Item Amount': net.toFixed(2), '*Item Tax Code': code,
+        'Item Tax Amount': vat.toFixed(2), Currency: 'GBP',
+      };
+      out.push(QBO_HEADER.map((h) => csv(row[h] ?? '')).join(','));
+    }
+  }
+  return { header: [...QBO_HEADER], rows: out };
+}
+
+// ---------- Sage: sales quick entries (Sage Accounting columns) ----------
+// Date format and the Sage quick-entry type code are NOT yet confirmed against a real Sage Accounting import.
+export const SAGE_HEADER = ['Type', 'Customer/Vendor Reference', 'Date', 'Name', 'Reference', 'Ledger Account', 'Details', 'Net', 'Tax Rate', 'Tax', 'Total'] as const;
+
+export function toSage(orders: OrderRow[], opts: { nominalCode?: string; shippingNominal?: string; discountNominal?: string; std: number }) {
   const nominal = opts.nominalCode || process.env.SAGE_SALES_NOMINAL || '4000';
-  const shipNominal = opts.shippingNominal || process.env.SAGE_SHIPPING_NOMINAL || nominal;
-  const discNominal = opts.discountNominal || process.env.SAGE_DISCOUNT_NOMINAL || nominal;
-  const taxCode = opts.taxCode || process.env.SAGE_TAX_CODE || '1'; // 1 = T1 standard 20% VAT
-  const VAT_RATE = 0.2; // TODO: pull from a future tax-rate setting
-  const split = (gross: number) => {
-    const net = +(gross / (1 + VAT_RATE)).toFixed(2);
-    const v = +(gross - net).toFixed(2);
-    return { net, v };
-  };
-  const header = ['Type','Account Reference','Date','Reference','Details','Net','Tax Code','Tax','Total'];
   const out: string[] = [];
   for (const o of orders) {
-    const ac = o.customerName.slice(0, 8).toUpperCase().replace(/[^A-Z0-9]/g, ''); // Sage account refs ≤ 8 chars
-    const date = fmtDateUk(o.createdAt);
-    const addLine = (details: string, gross: number, nom: string, negative = false) => {
-      const g = negative ? -Math.abs(gross) : Math.abs(gross);
-      const { net, v } = split(g);
-      out.push(['SI', ac, date, o.number, details, net.toFixed(2), taxCode, v.toFixed(2), g.toFixed(2)].map(csv).join(','));
-    };
-    for (const li of o.items) {
-      addLine(`${li.name}${li.label ? ' — ' + li.label : ''}`, li.qty * li.unitPrice, nominal);
+    const ref = o.customerName.slice(0, 8).toUpperCase().replace(/[^A-Z0-9]/g, '') || 'GUEST';
+    const date = ukDate(o.createdAt);
+    for (const l of invoiceLines(o, opts.std, opts.shippingNominal || nominal, opts.discountNominal || nominal)) {
+      const { net, vat } = splitGross(l.gross, l.rate);
+      const row: Record<string, string | number> = {
+        Type: 'SI', 'Customer/Vendor Reference': ref, Date: date, Name: o.customerName, Reference: o.number,
+        'Ledger Account': l.account || nominal, Details: l.description.slice(0, 25), Net: net.toFixed(2),
+        'Tax Rate': l.rate, Tax: vat.toFixed(2), Total: (net + vat).toFixed(2),
+      };
+      out.push(SAGE_HEADER.map((h) => csv(row[h] ?? '')).join(','));
     }
-    if (o.shipping > 0) addLine('Delivery / postage', o.shipping, shipNominal);
-    if (o.discount > 0) addLine('Discount applied', o.discount, discNominal, true);
-    if (o.items.length === 0 && o.shipping === 0 && o.discount === 0) addLine('Order total', o.total, nominal);
   }
-  return { header, rows: out };
+  return { header: [...SAGE_HEADER], rows: out };
 }

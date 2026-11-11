@@ -1,3 +1,4 @@
+import { standardVatRate } from '@/lib/reports/load';
 import { NextResponse } from 'next/server';
 import { requireOwner } from '@/lib/session';
 import { loadPaidOrders, toSage } from '@/lib/accounting/export';
@@ -14,7 +15,7 @@ export async function GET(req: Request) {
     from: url.searchParams.get('from'), to: url.searchParams.get('to'), source: url.searchParams.get('source'),
   });
   const s = (k: string) => url.searchParams.get(k) || undefined;
-  const { header, rows } = toSage(orders, { nominalCode: s('nominalCode'), shippingNominal: s('shippingNominal'), discountNominal: s('discountNominal'), taxCode: s('taxCode'), customerRef: s('customerRef') });
+  const { header, rows } = toSage(orders, { nominalCode: s('nominalCode'), shippingNominal: s('shippingNominal'), discountNominal: s('discountNominal'), std: await standardVatRate() });
   const today = new Date().toISOString().slice(0, 10);
   return new NextResponse(header.join(',') + '\n' + rows.join('\n'), {
     headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="sage-sales-${today}.csv"` },
