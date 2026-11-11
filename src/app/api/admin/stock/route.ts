@@ -57,10 +57,10 @@ export async function GET() {
     FROM purchase_order_lines l JOIN purchase_orders p ON p.id = l.po_id
     WHERE p.status IN ('sent','part_received') GROUP BY l.variant_id`));
   const expiring = rowsOf(await db.execute(sql`
-    SELECT b.id, b.variant_id AS vid, b.batch_code, b.expiry_date, b.qty_remaining, p.name AS product_name, v.sku
+    SELECT b.id, b.variant_id AS vid, b.batch_code, b.expiry_date::text AS expiry_date, b.qty_remaining, p.name AS product_name, v.sku
     FROM stock_batches b JOIN product_variants v ON v.id = b.variant_id LEFT JOIN products p ON p.id = v.product_id
-    WHERE b.qty_remaining > 0 AND NOT b.recalled AND b.expiry_date IS NOT NULL AND b.expiry_date <= to_char(CURRENT_DATE + 60, 'YYYY-MM-DD')
-    ORDER BY b.expiry_date ASC`));
+    WHERE b.qty_remaining > 0 AND NOT b.recalled AND b.expiry_date IS NOT NULL AND b.expiry_date::text <= to_char(CURRENT_DATE + 60, 'YYYY-MM-DD')
+    ORDER BY b.expiry_date::text ASC`));
 
   const soldBy = new Map<number, { qty: number; rev: number }>(sold.map((r: any) => [Number(r.vid), { qty: Number(r.qty), rev: Number(r.rev) }]));
   const onOrderBy = new Map<number, number>(onOrderRows.map((r: any) => [Number(r.vid), Number(r.qty)]));

@@ -133,9 +133,13 @@ export const LAZY_SQL: string[] = [
   `CREATE INDEX IF NOT EXISTS stock_reservations_status_idx ON stock_reservations (status, expires_at)`,
   `CREATE TABLE IF NOT EXISTS stock_batches (
      id SERIAL PRIMARY KEY, variant_id INTEGER NOT NULL, batch_code TEXT NOT NULL,
-     expiry_date DATE, qty_received INTEGER NOT NULL, qty_remaining INTEGER NOT NULL,
+     expiry_date TEXT, qty_received INTEGER NOT NULL, qty_remaining INTEGER NOT NULL,
      unit_cost NUMERIC(10,2), po_id INTEGER, received_at TIMESTAMP NOT NULL DEFAULT NOW(),
      recalled BOOLEAN NOT NULL DEFAULT false)`,
+  // Earlier builds created stock_batches.expiry_date as DATE. The app (schema.ts) and the stock report
+  // treat it as YYYY-MM-DD text, and a DATE column makes the report query fail with HTTP 500.
+  // Convert once, only while the column is still DATE.
+  `DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'stock_batches' AND column_name = 'expiry_date' AND data_type = 'date') THEN ALTER TABLE stock_batches ALTER COLUMN expiry_date TYPE TEXT USING to_char(expiry_date, 'YYYY-MM-DD'); END IF; END $$`,
   `CREATE INDEX IF NOT EXISTS stock_batches_variant_idx ON stock_batches (variant_id, expiry_date)`,
   `CREATE TABLE IF NOT EXISTS suppliers (
      id SERIAL PRIMARY KEY, name TEXT NOT NULL, contact_name TEXT, email TEXT, phone TEXT,
