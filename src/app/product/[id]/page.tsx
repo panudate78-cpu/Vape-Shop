@@ -51,8 +51,8 @@ export default function ProductPage() {
 
   return (
     <div className="mx-auto max-w-6xl grid md:grid-cols-2 gap-8 py-6 px-4">
-      <div className="aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-zinc-800 to-zinc-900 grid place-items-center">
-        {product.images?.[0] ? <PlaceholderImage src={product.images[0]} alt={product.name} className="h-full w-full object-cover" /> : <span className="text-7xl">☁️</span>}
+      <div className="rounded-2xl overflow-hidden bg-white grid place-items-center p-2">
+        {product.images?.[0] ? <PlaceholderImage src={product.images[0]} alt={product.name} className="w-full h-auto max-h-[640px] object-contain" /> : <span className="text-7xl">☁️</span>}
       </div>
       <div>
         <div className="text-xs text-slate-900 uppercase tracking-wide font-bold">{product.brand}{product.categoryName ? ' · ' + product.categoryName : ''}</div>
