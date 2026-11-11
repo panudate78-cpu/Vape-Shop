@@ -173,8 +173,9 @@ export type OrderEmailData = {
   shippingCost: string | number;
   totalAmount: string | number;
   collectionMode: 'delivery' | 'collect';
-  shippingAddress: { line1?: string; line2?: string; city?: string; county?: string; postcode?: string } | null;
+  shippingAddress: { name?: string; line1?: string; line2?: string; city?: string; county?: string; postcode?: string } | null;
   promoCode?: string | null;
+  isGuest?: boolean; // guests track their order at /track (order number + email)
   customerEmail: string;
   customerName?: string | null;
   items: { productName: string; variantLabel: string; sku: string; quantity: number; unitPrice: string | number }[];
@@ -184,7 +185,7 @@ export type OrderEmailData = {
 
 function fmtAddr(a: OrderEmailData['shippingAddress']): string {
   if (!a) return '';
-  return [a.line1, a.line2, a.city, a.county, a.postcode].filter(Boolean).join(', ');
+  return [a.name, a.line1, a.line2, a.city, a.county, a.postcode].filter(Boolean).join(', ');
 }
 
 /* ---------- Public template builders ---------- */
@@ -214,7 +215,7 @@ export function buildCustomerConfirmation(o: OrderEmailData) {
       <tr class="grand"><td>Total paid</td><td class="num">${gbp(o.totalAmount)}</td></tr>
     </table>
     <div style="clear:both;height:18px;"></div>
-    <p style="text-align:center;"><a class="btn" href="${storeUrl()}/order/${o.id}">View your order →</a></p>
+    <p style="text-align:center;"><a class="btn" href="${o.isGuest ? `${storeUrl()}/track` : `${storeUrl()}/order/${o.id}`}">${o.isGuest ? 'Track your order' : 'View your order'} →</a></p>
     <div class="warn">⚠️ You must be 18+ to purchase. Challenge 25 — ID may be required on ${isCollect ? 'collection' : 'delivery'}. Nicotine is highly addictive.</div>
     <p style="font-size:12px;color:#6b7280;">Questions? Reply to this email or call ${escapeHtml(BRAND.phone)}.</p>
   `;
@@ -268,7 +269,7 @@ export function buildCollectionReady(o: OrderEmailData) {
       ${escapeHtml(fullAddress)}
     </div>
     <p>Please bring photo ID (Challenge 25) and your order number <b>${escapeHtml(orderNo)}</b>.</p>
-    <p style="text-align:center;"><a class="btn" href="${storeUrl()}/order/${o.id}">View your order →</a></p>
+    <p style="text-align:center;"><a class="btn" href="${o.isGuest ? `${storeUrl()}/track` : `${storeUrl()}/order/${o.id}`}">${o.isGuest ? 'Track your order' : 'View your order'} →</a></p>
     <p style="font-size:12px;color:#6b7280;">Questions? Reply to this email or call ${escapeHtml(BRAND.phone)}.</p>
   `;
   const { html, text } = layout(inner, { preview: `Order ${orderNo} is ready to collect` });

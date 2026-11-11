@@ -5,15 +5,20 @@ import { db } from '@/db';
 import { orders, orderItems, promoCodes, productVariants, addresses, users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { getSession } from '@/lib/session';
-import { resolveCart, totals } from '@/lib/cart';
+import { resolveCart } from '@/lib/cart';
+import { quoteOrder } from '@/lib/pricing';
 import { isOfAge } from '@/lib/auth';
 import { createPaymentIntent } from '@/lib/payments';
 import { reserveForOrder, StockError } from '@/lib/stock';
 import { saleGate, recordAgeCheck, ComplianceError } from '@/lib/compliance';
 
+// UK postcode, e.g. KT9 2RT (spaces optional).
+const UK_POSTCODE_RE = /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i;
 const addressSchema = z.object({
-  line1: z.string().min(2), line2: z.string().optional().default(''),
-  city: z.string().min(2), postcode: z.string().min(3), county: z.string().optional().default(''),
+  name: z.string().trim().min(2, 'Enter the recipient name').max(100).optional().default(''),
+  line1: z.string().trim().min(2, 'Enter address line 1'), line2: z.string().trim().optional().default(''),
+  city: z.string().trim().min(2, 'Enter the town or city'), county: z.string().trim().optional().default(''),
+  postcode: z.string().trim().regex(UK_POSTCODE_RE, 'Enter a valid UK postcode, e.g. KT9 2RT'),
 });
 const schema = z.object({
   mode: z.enum(['delivery', 'collect']).default('delivery'),
@@ -23,9 +28,6 @@ const schema = z.object({
   compliance: z.literal(true),
   promoCode: z.string().max(32).optional().nullable(),
 });
-
-const SHIPPING_FLAT = 3.99;
-const FREE_SHIP_THRESHOLD = 30;
 
 export async function POST(req: Request) {
   const session = await getSession();
@@ -54,22 +56,10 @@ export async function POST(req: Request) {
   const email = session.user?.email || parsed.data.email;
   if (!email) return NextResponse.json({ error: 'Email required' }, { status: 400 });
 
-  let discount = 0; let shippingCost = mode === 'delivery' ? SHIPPING_FLAT : 0;
-  let promoRow: typeof promoCodes.$inferSelect | null = null;
-  const subtotal = totals(items).subtotal;
-  if (promoCode) {
-    const [p] = await db.select().from(promoCodes).where(eq(promoCodes.code, promoCode.toUpperCase())).limit(1);
-    if (!p || !p.active) return NextResponse.json({ error: 'Invalid promo' }, { status: 400 });
-    if (p.expiresAt && new Date(p.expiresAt) < new Date()) return NextResponse.json({ error: 'Promo expired' }, { status: 400 });
-    if (p.usageLimit != null && (p.timesUsed ?? 0) >= p.usageLimit) return NextResponse.json({ error: 'Promo used up' }, { status: 400 });
-    if (Number(p.minSpend ?? 0) > subtotal) return NextResponse.json({ error: `Minimum spend £${Number(p.minSpend).toFixed(2)}` }, { status: 400 });
-    if (p.type === 'percent') discount = +(subtotal * (Number(p.value) / 100)).toFixed(2);
-    else if (p.type === 'fixed') discount = Number(p.value);
-    else if (p.type === 'shipping' && mode === 'delivery') shippingCost = Math.max(0, shippingCost - Number(p.value));
-    promoRow = p;
-  }
-  if (mode === 'delivery' && subtotal >= FREE_SHIP_THRESHOLD) shippingCost = 0;
-  const total = Math.max(0, subtotal + shippingCost - discount);
+  // Same quote the checkout page showed (see /api/checkout/quote).
+  const q = await quoteOrder({ items, mode, promoCode });
+  if (!q.ok) return NextResponse.json({ error: q.error }, { status: q.status });
+  const { subtotal, shipping: shippingCost, discount, total, promoCode: appliedPromo } = q.quote;
 
   const addr = mode === 'delivery' ? parsed.data.shippingAddress : null;
 
@@ -89,7 +79,7 @@ export async function POST(req: Request) {
       paymentStatus: 'pending',
       dobVerified: true,
       complianceAccepted: true,
-      promoCode: promoRow?.code ?? null,
+      promoCode: appliedPromo,
     })
     .returning();
 

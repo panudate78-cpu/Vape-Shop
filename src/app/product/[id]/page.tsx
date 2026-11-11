@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { gbp, variantLabel as makeLabel } from '@/lib/format';
 import { useStore } from '@/lib/store';
@@ -72,7 +73,7 @@ export default function ProductPage() {
               const active = sel === vv.id;
               const out = vv.stockQuantity === 0;
               return (
-                <button key={vv.id} onClick={() => setSel(vv.id)} disabled={out}
+                <button key={vv.id} type="button" onClick={() => setSel(vv.id)} disabled={out} aria-pressed={active}
                   className={`text-left rounded-xl border p-3 text-sm transition ${active ? 'border-[#BBDEFB] bg-slate-50' : 'border-slate-200 hover:border-slate-400'} ${out ? 'opacity-40 cursor-not-allowed' : ''}`}>
                   <div className="flex items-center gap-2">
                     {vv.color && /^#([0-9a-f]{3}){1,2}$/i.test(vv.color) && (
@@ -81,7 +82,7 @@ export default function ProductPage() {
                     <span className="font-bold text-slate-900">{lbl}</span>
                   </div>
                   <div className="text-xs text-slate-500 mt-1">
-                    {gbp(vv.price)} · {out ? 'Out of stock' : `${vv.stockQuantity} in stock`}
+                    {gbp(vv.price)} · {out ? 'Out of stock' : vv.stockQuantity <= 5 ? `Only ${vv.stockQuantity} left` : 'In stock'}
                   </div>
                 </button>
               );
@@ -104,7 +105,8 @@ export default function ProductPage() {
           >
             {v && v.stockQuantity > 0 ? 'Add to cart' : 'Out of stock'}
           </button>
-          <p className="text-xs text-slate-400 mt-3">⚠️ Nicotine is addictive. Adults 18+ only. Challenge 25 on collection/delivery.</p>
+          <p className="text-xs text-slate-700 mt-3">⚠️ Nicotine is addictive. Adults 18+ only. Challenge 25 on collection/delivery.</p>
+          <p className="text-xs text-slate-700 mt-2">Stock shown is what you can buy now. <Link href="/delivery" className="underline">Delivery &amp; collection</Link> · <Link href="/returns" className="underline">Returns</Link></p>
         </div>
       </div>
     </div>

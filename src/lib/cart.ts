@@ -41,7 +41,9 @@ export async function resolveCart(lines: CartLine[]): Promise<CartItem[]> {
     .map((l) => {
       const v = vs.find((x) => x.variantId === l.variantId);
       if (!v) return null;
-      const price = v.priceOverride != null ? Number(v.priceOverride) : Number(v.basePrice);
+      // Same rule as the shop: a missing or £0 override means the base price applies.
+      const override = v.priceOverride != null ? Number(v.priceOverride) : NaN;
+      const price = !isNaN(override) && override > 0 ? override : Number(v.basePrice);
       const label = [v.flavor, v.nicotineStrength, v.bottleSize].filter(Boolean).join(' · ') || 'Standard';
       return {
         variantId: v.variantId,

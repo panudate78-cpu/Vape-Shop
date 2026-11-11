@@ -57,7 +57,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     product: {
       id: String(p.id), name: p.name, brand: p.brand, description: scrubDesc(p.description),
       basePrice: Number(base).toFixed(2), vgPgRatio: p.vgPgRatio,
-      flavorProfile: p.flavorProfile,
+      flavorProfile: (p.flavorProfile || '').trim() && !/^[—–-]$/.test((p.flavorProfile || '').trim()) ? p.flavorProfile : '',
       images: (p.images as string[] | null) || [],
       tags: (p.tags as string[] | null) || [],
       isActive: p.isActive,
@@ -74,7 +74,11 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
         priceOverride: !isNaN(override) && override > 0 ? Number(override.toFixed(2)) : null,
         price: Number(unitPrice.toFixed(2)),
         unitPrice: Number(unitPrice.toFixed(2)),
-        stockQuantity: v.stockQuantity, lowStockThreshold: v.lowStockThreshold,
+        // Shoppers see what can be bought now (on hand minus units held for other checkouts).
+        // Staff editors see on-hand and the held count, so stock edits stay accurate.
+        stockQuantity: staff ? v.stockQuantity : Math.max(0, v.stockQuantity - (v.reservedQuantity ?? 0)),
+        ...(staff ? { onHand: v.stockQuantity, reservedQuantity: v.reservedQuantity ?? 0 } : {}),
+        lowStockThreshold: v.lowStockThreshold,
         isActive: v.isActive,
       };
     }),

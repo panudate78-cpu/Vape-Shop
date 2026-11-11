@@ -13,11 +13,16 @@ function scrubDesc(d: unknown): string {
   return String(d || "").replace(HEX_COLOR_RE, "").replace(/\s{2,}/g, " ").trim();
 }
 
+// Shoppers' product list. Search matches every word against name, brand, flavour, tags,
+// category, description, SKU, strength and size. Filters are applied on the server so the
+// counts and the facet lists always agree with the results.
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const category = searchParams.get('category') || undefined;
-  const q = searchParams.get('q') || undefined;
+  const q = (searchParams.get('q') || '').trim().toLowerCase();
   const brand = searchParams.get('brand') || undefined;
+  const strength = (searchParams.get('strength') || '').trim().toLowerCase();
+  const flavour = (searchParams.get('flavour') || '').trim().toLowerCase();
   const inStock = searchParams.get('inStock') === '1';
   const maxPriceStr = searchParams.get('maxPrice');
   const sort = searchParams.get('sort') || 'name';
@@ -36,17 +41,12 @@ export async function GET(req: Request) {
     .from(products)
     .leftJoin(categories, eq(products.categoryId, categories.id))
     .leftJoin(productVariants, eq(productVariants.productId, products.id))
-    .where(
-      and(
-        eq(products.isActive, true),
-        category ? eq(categories.slug, category) : undefined,
-        q ? sql`${products.name} ilike ${'%' + q + '%'}` : undefined,
-        brand ? eq(products.brand, brand) : undefined,
-      )
-    );
+    .where(eq(products.isActive, true));
 
   const byId = new Map<number, any>();
   const brandSet = new Set<string>();
+  const strengthSet = new Set<string>();
+  const flavourSet = new Set<string>();
   for (const r of rows) {
     if (!r.id) continue;
     let p = byId.get(r.id);
@@ -55,7 +55,7 @@ export async function GET(req: Request) {
         id: String(r.id),
         name: r.name, brand: r.brand, description: scrubDesc(r.description),
         basePrice: Number(r.basePrice ?? 0),
-        vgPgRatio: r.vgPgRatio, flavorProfile: r.flavorProfile,
+        vgPgRatio: r.vgPgRatio, flavorProfile: cleanProfile(r.flavorProfile),
         images: (r.images as string[] | null) || [],
         tags: (r.tags as string[] | null) || [],
         categoryId: r.categoryId != null ? String(r.categoryId) : null,
@@ -69,17 +69,35 @@ export async function GET(req: Request) {
     if (r.v_id != null && r.v_isActive) {
       const override = r.v_priceOverride != null ? Number(r.v_priceOverride) : NaN;
       const unitPrice = !isNaN(override) && override > 0 ? override : Number(r.basePrice ?? 0);
+      const flavor = cleanText(r.v_flavor);
+      const nicotineStrength = cleanText(r.v_nicotineStrength) || '0mg';
+      if (nicotineStrength) strengthSet.add(nicotineStrength);
+      if (flavor) flavourSet.add(flavor);
       p.variants.push({
         id: String(r.v_id), sku: r.v_sku,
-        flavor: r.v_flavor ?? '', nicotineStrength: r.v_nicotineStrength ?? '0mg',
-        bottleSize: r.v_bottleSize ?? '10ml', color: r.v_color ?? null,
+        flavor, nicotineStrength,
+        bottleSize: cleanText(r.v_bottleSize) || '10ml', color: r.v_color ?? null,
         priceOverride: !isNaN(override) && override > 0 ? Number(override.toFixed(2)) : null,
         price: Number(unitPrice.toFixed(2)),
         unitPrice: Number(unitPrice.toFixed(2)),
-        stockQuantity: Math.max(0, (r.v_stockQuantity ?? 0) - (r.v_reserved ?? 0)), // available, not on hand
+        // Available to buy now: on hand minus units held for other checkouts.
+        stockQuantity: Math.max(0, (r.v_stockQuantity ?? 0) - (r.v_reserved ?? 0)),
       });
     }
   }
+
+  const tokens = q.split(/\s+/).filter(Boolean);
+  const matchesSearch = (p: any) => {
+    if (!tokens.length) return true;
+    const hay = [
+      p.name, p.brand, p.flavorProfile, p.categoryName, p.description, p.vgPgRatio,
+      ...(p.tags || []),
+      ...p.variants.flatMap((v: any) => [v.flavor, v.sku, v.nicotineStrength, v.bottleSize]),
+    ].filter(Boolean).join(' ').toLowerCase();
+    // Every word must appear somewhere, so "mango 10mg" finds mango liquids at 10mg.
+    return tokens.every((t) => hay.includes(t));
+  };
+  const hasVariant = (p: any, pred: (v: any) => boolean) => p.variants.some(pred);
 
   let list = Array.from(byId.values()).map((p) => {
     const prices = p.variants.length ? p.variants.map((v: any) => v.unitPrice) : [p.basePrice];
@@ -93,20 +111,44 @@ export async function GET(req: Request) {
     };
   });
 
+  list = list.filter((p) =>
+    (!category || p.categorySlug === category) &&
+    (!brand || (p.brand || '').toLowerCase() === brand.toLowerCase()) &&
+    matchesSearch(p) &&
+    (!strength || hasVariant(p, (v) => v.nicotineStrength.toLowerCase() === strength)) &&
+    (!flavour || hasVariant(p, (v) => v.flavor.toLowerCase() === flavour || (p.flavorProfile || '').toLowerCase() === flavour)) &&
+    (!inStock || p.totalStock > 0)
+  );
   if (maxPriceStr) {
     const max = parseFloat(maxPriceStr);
     if (!isNaN(max)) list = list.filter((p) => p.minPrice <= max);
   }
-  if (inStock) list = list.filter((p) => p.totalStock > 0);
-  if (sort === 'price_asc') list = [...list].sort((a, b) => a.minPrice - b.minPrice);
-  else if (sort === 'price_desc') list = [...list].sort((a, b) => b.minPrice - a.minPrice);
+  if (sort === 'price_asc') list = [...list].sort((a, b) => a.minPrice - b.minPrice || a.name.localeCompare(b.name));
+  else if (sort === 'price_desc') list = [...list].sort((a, b) => b.minPrice - a.minPrice || a.name.localeCompare(b.name));
   else list = [...list].sort((a, b) => a.name.localeCompare(b.name));
 
   return NextResponse.json({
+    count: list.length,
     products: list,
-    brands: Array.from(brandSet).sort(),
-    categories: [],
+    // Merge brands that differ only by case (e.g. "SMOK" and "Smok") so the facet lists each once.
+    brands: Array.from(new Map(Array.from(brandSet).map((b) => [b.toLowerCase(), b])).values()).sort(),
+    strengths: Array.from(strengthSet).sort(strengthSort),
+    flavours: Array.from(flavourSet).sort(),
   });
+}
+
+// Stored placeholders ("—", "-") are not real values and must not reach shoppers.
+function cleanText(v: unknown): string {
+  const t = String(v ?? '').trim();
+  return t === '—' || t === '-' || t === '–' ? '' : t;
+}
+function cleanProfile(v: unknown): string | null {
+  const t = cleanText(v);
+  return t || null;
+}
+// Sort nicotine strengths numerically (0mg, 3mg, 6mg, 12mg, 20mg).
+function strengthSort(a: string, b: string) {
+  return (parseFloat(a) || 0) - (parseFloat(b) || 0) || a.localeCompare(b);
 }
 
 // ---------- Create product (admin) ----------

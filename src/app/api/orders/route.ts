@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { orders, orderItems } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { getSession } from '@/lib/session';
+import { trackingView } from '@/lib/order-access';
 
 export async function GET() {
   const s = await getSession();
@@ -18,9 +19,11 @@ export async function POST(req: Request) {
   const email = String(body.email || '').toLowerCase();
   const [o] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
   if (!o) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  const match = (o.userId && o.userId > 0 && (await getSession()).user?.id === o.userId)
-    || (o.guestEmail && o.guestEmail.toLowerCase() === email);
-  if (!match) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  // Tracking is by order number and the email used at checkout (a signed-in owner can also use it).
+  const s = await getSession();
+  const match = (o.userId != null && s.user?.id === o.userId)
+    || (o.guestEmail != null && o.guestEmail.toLowerCase() === email && email !== '');
+  if (!match) return NextResponse.json({ error: 'We could not find an order with that number and email.' }, { status: 404 });
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, o.id));
-  return NextResponse.json({ order: o, items });
+  return NextResponse.json(trackingView(o as any, items as any));
 }
