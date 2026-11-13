@@ -100,7 +100,7 @@ export default function SitePage() {
         </div>
         <p id="maint-help" className="text-xs text-zinc-400">
           {owner
-            ? "Turning this on asks you to confirm first. Staff accounts keep full access to the admin and the till while it is on."
+            ? "Turning this on asks you to confirm first. Staff accounts keep full access to the admin and the till while it is on. To see the customer page yourself, use the \u2018Preview the customer page\u2019 link in the amber bar on the site."
             : "Only the owner can turn maintenance mode on or off."}
         </p>
       </section>
