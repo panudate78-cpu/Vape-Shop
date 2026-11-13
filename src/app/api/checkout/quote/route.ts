@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { blocksShoppers } from '@/lib/maintenance';
 import { z } from 'zod';
 import { getSession } from '@/lib/session';
 import { resolveCart } from '@/lib/cart';
@@ -15,6 +16,9 @@ const schema = z.object({
 });
 
 export async function POST(req: Request) {
+  if (await blocksShoppers()) {
+    return NextResponse.json({ error: 'The website is in maintenance mode. Please try again later, or call the shop.' }, { status: 503 });
+  }
   const body = await req.json().catch(() => ({}));
   const parsed = schema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'Choose delivery or collection.' }, { status: 400 });

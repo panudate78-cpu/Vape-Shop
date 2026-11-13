@@ -43,6 +43,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       { href: "/admin/staff", label: owner ? "👥 Staff & audit" : "🧾 Audit log" },
     ] : []),
     ...(owner ? [{ href: "/admin/import", label: "📥 CSV Import/Export" }] : []),
+    ...(owner ? [{ href: "/admin/site", label: "🛠 Site & maintenance" }] : []),
     { href: "/shop", label: "🛍 View Store" },
   ];
   return (

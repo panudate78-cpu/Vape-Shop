@@ -1,5 +1,6 @@
 import { currentCostMap, costForLine } from '@/lib/reports/cost';
 import { NextResponse } from 'next/server';
+import { blocksShoppers } from '@/lib/maintenance';
 import { z } from 'zod';
 import { db } from '@/db';
 import { orders, orderItems, promoCodes, productVariants, addresses, users } from '@/db/schema';
@@ -30,6 +31,9 @@ const schema = z.object({
 });
 
 export async function POST(req: Request) {
+  if (await blocksShoppers()) {
+    return NextResponse.json({ error: 'The website is in maintenance mode. Please try again later, or call the shop.' }, { status: 503 });
+  }
   const session = await getSession();
   const items = await resolveCart(session.cart);
   if (!items.length) return NextResponse.json({ error: 'Cart is empty' }, { status: 400 });
