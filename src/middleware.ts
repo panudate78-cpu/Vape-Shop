@@ -12,7 +12,10 @@ import type { NextRequest } from 'next/server';
  *   by <AgeGate />; auth is enforced server-side per route.
  */
 export function middleware(req: NextRequest) {
-  const res = NextResponse.next();
+  // Pass the path to server components (the root layout uses it for maintenance mode).
+  const headers = new Headers(req.headers);
+  headers.set('x-pathname', req.nextUrl.pathname);
+  const res = NextResponse.next({ request: { headers } });
   // Basic hardening headers.
   res.headers.set('X-Content-Type-Options', 'nosniff');
   res.headers.set('X-Frame-Options', 'DENY');
