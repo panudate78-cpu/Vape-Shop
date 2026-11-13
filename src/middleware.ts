@@ -15,6 +15,8 @@ export function middleware(req: NextRequest) {
   // Pass the path to server components (the root layout uses it for maintenance mode).
   const headers = new Headers(req.headers);
   headers.set('x-pathname', req.nextUrl.pathname);
+  // Staff can preview the customer maintenance page with ?preview=maintenance.
+  if (req.nextUrl.searchParams.get('preview') === 'maintenance') headers.set('x-maintenance-preview', '1');
   const res = NextResponse.next({ request: { headers } });
   // Basic hardening headers.
   res.headers.set('X-Content-Type-Options', 'nosniff');
